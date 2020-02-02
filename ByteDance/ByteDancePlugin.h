@@ -11,6 +11,10 @@
 
 #include "IVideoFramePlugin.h"
 #include "bef_effect_ai_api.h"
+#include "bef_effect_ai_face_detect.h"
+#include "bef_effect_ai_face_verify.h"
+#include "bef_effect_ai_face_attribute.h"
+#include "bef_effect_ai_hand.h"
 #include <string>
 #include <thread>
 #include <vector>
@@ -83,7 +87,14 @@ protected:
     std::string mLicensePath = "";
     std::string mStickerPath = "";
     std::string mBeautyPath  ="";
+    std::string mFaceDetectPath = "";
+    std::string mFaceDetectExtraPath = "";
+    std::string mFaceAttributePath = "";
+    bef_ai_face_info mFaceInfo;
+    bef_ai_face_attribute_info mFaceAttributeInfo;
     bef_effect_handle_t m_renderMangerHandle = 0;
+    bef_effect_handle_t m_faceDetectHandle = 0;
+    bef_effect_handle_t m_faceAttributesHandle = 0;
     std::vector<ByteDanceBundle> bundles;
     std::map<int, double> mBeautyOptions;
     std::unique_ptr<int> items;

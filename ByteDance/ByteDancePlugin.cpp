@@ -190,6 +190,26 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             ret = bef_effect_ai_init(m_renderMangerHandle, 0, 0, mStickerPath.c_str(), "");
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: init effect handle failed !");
             
+            //face detect
+            ret = bef_effect_ai_face_detect_create(BEF_DETECT_SMALL_MODEL | BEF_DETECT_FULL | BEF_DETECT_MODE_VIDEO, mFaceDetectPath.c_str(), &m_faceDetectHandle);
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: create face detect handle failed !");
+            
+            ret = bef_effect_ai_face_check_license(m_faceDetectHandle, mLicensePath.c_str());
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: check_license face detect failed");
+            
+            ret = bef_effect_ai_face_detect_setparam(m_faceDetectHandle, BEF_FACE_PARAM_FACE_DETECT_INTERVAL, 15);
+            
+            ret = bef_effect_ai_face_detect_setparam(m_faceDetectHandle, BEF_FACE_PARAM_MAX_FACE_NUM, BEF_MAX_FACE_NUM);
+            
+//            ret = bef_effect_ai_face_detect_add_extra_model(m_faceDetectHandle, TT_MOBILE_FACE_280_DETECT , mFaceDetectExtraPath.c_str());
+            
+            //face attributes
+            ret = bef_effect_ai_face_attribute_create(0, mFaceAttributePath.c_str(), &m_faceAttributesHandle);
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: create face attribute handle failed !");
+            
+            ret = bef_effect_ai_face_attribute_check_license(m_faceAttributesHandle, mLicensePath.c_str());
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: check_license face attribute failed");
+            
             mNamaInited = true;
         }
         
@@ -212,25 +232,41 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
         
         uint64_t timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         unsigned char *in_ptr = yuvData(videoFrame);
-        unsigned char* out_ptr = (uint8_t*)malloc(640 * 480 * sizeof(uint8_t) * 4);
-        unsigned char* out_ptr2 = (uint8_t*)malloc(640 * 480 * sizeof(uint8_t) * 4);
+        unsigned char* out_ptr = (unsigned char*)malloc(videoFrame->yStride * videoFrame->height * 4);
         cvt_yuv2rgba(in_ptr, out_ptr, BEF_AI_PIX_FMT_YUV420P, videoFrame->yStride, videoFrame->height, videoFrame->yStride, videoFrame->height, BEF_AI_CLOCKWISE_ROTATE_0, false);
+        
+        bef_ai_face_info faceInfo;
+        memset(&faceInfo, 0, sizeof(bef_ai_face_info));
+        ret = bef_effect_ai_face_detect(m_faceDetectHandle, out_ptr, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, BEF_AI_CLOCKWISE_ROTATE_0, BEF_DETECT_MODE_VIDEO | BEF_DETECT_FULL, &faceInfo);
+        mFaceInfo = faceInfo;
+        
+        if(faceInfo.face_count == 0) {
+            LOG_F(INFO, "no face detected");
+        } else {
+            unsigned long long attriConfig = BEF_FACE_ATTRIBUTE_AGE | BEF_FACE_ATTRIBUTE_HAPPINESS                                |BEF_FACE_ATTRIBUTE_EXPRESSION|BEF_FACE_ATTRIBUTE_GENDER
+            |BEF_FACE_ATTRIBUTE_RACIAL|BEF_FACE_ATTRIBUTE_ATTRACTIVE;
+            bef_ai_face_attribute_info attrInfo;
+            memset(&attrInfo, 0, sizeof(bef_ai_face_attribute_info));
+            ret = bef_effect_ai_face_attribute_detect(m_faceAttributesHandle, out_ptr, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, faceInfo.base_infos, attriConfig, &attrInfo);
+            mFaceAttributeInfo = attrInfo;
+        }
+        
         
         
         ret = bef_effect_ai_algorithm_buffer(m_renderMangerHandle, out_ptr,
-                                       BEF_AI_PIX_FMT_RGBA8888, videoFrame->width,
-                                       videoFrame->height, videoFrame->yStride,
+                                       BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride,
+                                       videoFrame->height, videoFrame->yStride * 4,
                                        timestamp);
         ret = bef_effect_ai_process_buffer(m_renderMangerHandle, out_ptr,
-                                        BEF_AI_PIX_FMT_RGBA8888, videoFrame->width,
-                                        videoFrame->height, videoFrame->yStride,
-                                        out_ptr2, BEF_AI_PIX_FMT_RGBA8888,
+                                        BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride,
+                                        videoFrame->height, videoFrame->yStride * 4,
+                                        out_ptr, BEF_AI_PIX_FMT_RGBA8888,
                                         timestamp);
         
         CGLUnlockContext(_glContext);
         
         CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::buffer:: buffer image failed !");
-        cvt_rgba2yuv(out_ptr2, in_ptr, BEF_AI_PIX_FMT_YUV420P, videoFrame->width, videoFrame->height);
+        cvt_rgba2yuv(out_ptr, in_ptr, BEF_AI_PIX_FMT_YUV420P, videoFrame->width, videoFrame->height);
         
         videoFrameData(videoFrame, in_ptr);
         delete in_ptr;
@@ -307,6 +343,30 @@ bool ByteDancePlugin::setParameter(const char *param)
             return false;
         }
         mStickerPath = std::string(stickerPath.GetString());
+    }
+    
+    if(d.HasMember("plugin.bytedance.faceDetectModelPath")) {
+        Value& faceDetectModelPath = d["plugin.bytedance.faceDetectModelPath"];
+        if(!faceDetectModelPath.IsString()) {
+            return false;
+        }
+        mFaceDetectPath = std::string(faceDetectModelPath.GetString());
+    }
+    
+    if(d.HasMember("plugin.bytedance.faceDetectExtraModelPath")) {
+        Value& faceDetectExtraModelPath = d["plugin.bytedance.faceDetectExtraModelPath"];
+        if(!faceDetectExtraModelPath.IsString()) {
+            return false;
+        }
+        mFaceDetectExtraPath = std::string(faceDetectExtraModelPath.GetString());
+    }
+    
+    if(d.HasMember("plugin.bytedance.faceAttributeModelPath")) {
+        Value& attributeModelPath = d["plugin.bytedance.faceAttributeModelPath"];
+        if(!attributeModelPath.IsString()) {
+            return false;
+        }
+        mFaceAttributePath = std::string(attributeModelPath.GetString());
     }
 
     if(d.HasMember("plugin.bytedance.beauty.resourcepath")) {
