@@ -1,6 +1,9 @@
 sdk
 .vscode
 xcshareddata
+effect
+glew
+*.user
 .vs
 .DS_Store
 xcuserdata

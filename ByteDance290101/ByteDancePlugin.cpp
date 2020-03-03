@@ -74,6 +74,7 @@ bool ByteDancePlugin::initOpenGL()
 	//hglrc就是创建出的OpenGL context
 	printf("hw=%08x hgldc=%08x spf=%d ret=%d hglrc=%08x\n",
 		hw, hgldc, spf, ret, hglrc);
+    glewInit();
 #else
 	CGLPixelFormatAttribute attrib[13] = { kCGLPFAOpenGLProfile,
 		(CGLPixelFormatAttribute)kCGLOGLPVersion_Legacy,
@@ -248,8 +249,9 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
         }
 
         // 4. make it beautiful
+#ifndef _WIN32
         CGLLockContext(_glContext);
-        
+#endif
         uint64_t timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         unsigned char *in_ptr = yuvData(videoFrame);
         unsigned char* out_ptr = (unsigned char*)malloc(videoFrame->yStride * videoFrame->height * 4);
@@ -282,14 +284,16 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
                                         videoFrame->height, videoFrame->yStride * 4,
                                         out_ptr, BEF_AI_PIX_FMT_RGBA8888,
                                         timestamp);
-        
+#ifndef _WIN32        
         CGLUnlockContext(_glContext);
+#endif
         
         CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::buffer:: buffer image failed !");
         cvt_rgba2yuv(out_ptr, in_ptr, BEF_AI_PIX_FMT_YUV420P, videoFrame->width, videoFrame->height);
         
         videoFrameData(videoFrame, in_ptr);
         delete in_ptr;
+        delete out_ptr;
     } while(false);
     
     return true;
@@ -415,33 +419,32 @@ int ByteDancePlugin::setParameter(const char *param)
     return 0;
 }
 
-std::string ByteDancePlugin::getParameter(const char* key)
+const char* ByteDancePlugin::getParameter(const char* key)
 {
-    rapidjson::StringBuffer strBuf;
+    strBuf.Clear();
     rapidjson::Writer<rapidjson::StringBuffer> writer(strBuf);
     writer.SetMaxDecimalPlaces(3);
-    if(strncmp(key, "plugin.bytedance.face.info", strlen(key)) == 0) {
+    if (strncmp(key, "plugin.bytedance.face.info", strlen(key)) == 0) {
     } else if(strncmp(key, "plugin.bytedance.face.attribute", strlen(key)) == 0) {
-        
         writer.StartObject();
         writer.Key("age");
         writer.Double(mFaceAttributeInfo.age);
-        
+            
         writer.Key("boy_prob");
         writer.Double(mFaceAttributeInfo.boy_prob);
-        
+            
         writer.Key("attractive");
         writer.Double(mFaceAttributeInfo.attractive);
-        
+            
         writer.Key("happy_score");
         writer.Double(mFaceAttributeInfo.happy_score);
-        
+            
         writer.Key("exp_type");
         writer.Double(mFaceAttributeInfo.exp_type);
-        
+            
         writer.Key("racial_type");
         writer.Double(mFaceAttributeInfo.racial_type);
-        
+            
         writer.EndObject();
         return strBuf.GetString();
     }

@@ -12,7 +12,6 @@
 #include "IAVFramePlugin.h"
 #include "bef_effect_ai_api.h"
 #include "bef_effect_ai_face_detect.h"
-#include "bef_effect_ai_face_verify.h"
 #include "bef_effect_ai_face_attribute.h"
 #include "bef_effect_ai_hand.h"
 #include <string>
@@ -27,9 +26,11 @@
 
 #ifdef _WIN32
 #include "windows.h"
-#pragma comment(lib, "nama.lib")
+#include "glew.h"
+#pragma comment(lib, "effect.lib")
 #pragma comment(lib, "opengl32.lib")
 #pragma comment(lib, "glu32.lib")
+#pragma comment(lib, "glew32.lib")
 #else
 #include <dlfcn.h>
 #define GL_SILENCE_DEPRECATION
@@ -71,7 +72,7 @@ public:
     virtual int enable() override;
     virtual int disable() override;
     virtual int setParameter(const char* param) override;
-    virtual std::string getParameter(const char* key) override;
+    virtual const char* getParameter(const char* key) override;
     virtual int release() override;
 protected:
     bool initOpenGL();
@@ -80,6 +81,7 @@ protected:
     int yuvSize(VideoPluginFrame* videoFrame);
     
     std::string folderPath;
+    rapidjson::StringBuffer strBuf;
     bool switching = false;
 #if defined(_WIN32)
     int previousThreadId;
@@ -104,7 +106,9 @@ protected:
     std::vector<ByteDanceBundle> bundles;
     std::map<int, double> mBeautyOptions;
     std::unique_ptr<int> items;
+#ifndef _WIN32
     CGLContextObj _glContext;
+#endif
 };
 
 #define READ_DOUBLE_VALUE_PARAM(d, name, newvalue) \
