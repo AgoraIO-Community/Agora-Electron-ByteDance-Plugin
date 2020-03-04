@@ -6,7 +6,7 @@ unzip -u bytedance.zip
 mkdir -p bytedance/byted_effect_mac_headers
 unzip -u byted_effect*/byted_effect_mac_headers.zip -d bytedance/byted_effect_mac_headers
 
-mv byted_effect*/libeffect.dylib bytedance/
+cp byted_effect*/libeffect.dylib bytedance/
 
 rm -rf build
 xcodebuild -project ByteDancePlugin.xcodeproj
