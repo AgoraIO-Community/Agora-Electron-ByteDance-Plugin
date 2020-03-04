@@ -10,5 +10,6 @@ mv byted_effect*/libeffect.dylib bytedance/
 
 rm -rf build
 xcodebuild -project ByteDancePlugin.xcodeproj
+mv byted_effect*/libeffect.dylib build/
 cd build
 zip -r bytedance-mac.zip Release
