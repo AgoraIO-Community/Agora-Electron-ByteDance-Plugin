@@ -94,7 +94,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)\bytedance\glew\bin\Release\Win32;$(SolutionDir)\bytedance\effect\libs\msvc14\Win32\Release</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\bytedance\glew\lib\Release\Win32;$(SolutionDir)\bytedance\effect\libs\msvc14\Win32\Release</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -128,7 +128,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)\bytedance\glew\bin\Release\Win32;$(SolutionDir)\bytedance\effect\libs\msvc14\Win32\Release</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\bytedance\glew\lib\Release\Win32;$(SolutionDir)\bytedance\effect\libs\msvc14\Win32\Release</AdditionalLibraryDirectories>
       <ShowProgress>LinkVerbose</ShowProgress>
     </Link>
   </ItemDefinitionGroup>
