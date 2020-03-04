@@ -4,6 +4,10 @@ xcshareddata
 effect
 glew
 *.user
+bytedance.zip
+bytedance
+glew.zip
+glew
 .vs
 .DS_Store
 xcuserdata
