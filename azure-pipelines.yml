@@ -24,26 +24,14 @@ jobs:
     vmImage: 'vs2017-win2016'
 
   steps:
-    - bash: 'cd FaceUnityPlugin/win && ./release.sh'
+    - bash: 'cd ByteDance290101/win && ./sync.sh && ./build.sh'
     - task: VSBuild@1
       inputs:
-        solution: 'FaceUnityPlugin\win\FaceUnityPlugin.sln'
+        solution: 'ByteDance290101\win\ByteDancePlugin.sln'
         vsVersion: '15.0'
         msbuildArchitecture: 'x86'
         platform: 'x86'
         configuration: 'Release'
-    - bash: 'cd FaceUnityPlugin/win && ./package.sh'
-    
-    - bash: 'cd FaceUnityPlugin-2.9.0/win && ./release.sh'
-    - task: VSBuild@1
-      inputs:
-        solution: 'FaceUnityPlugin-2.9.0\win\FaceUnityPlugin.sln'
-        vsVersion: '15.0'
-        msbuildArchitecture: 'x86'
-        platform: 'x86'
-        configuration: 'Release'
-    - bash: 'cd FaceUnityPlugin-2.9.0/win && ./package.sh'
-    - publish: 'FaceUnityPlugin/win/fu-win.zip'
-      artifact: 'FaceUnityPluginWin'
-    - publish: 'FaceUnityPlugin-2.9.0/win/fu-win-290.zip'
-      artifact: 'FaceUnityPluginWin290'
+    - bash: 'cd ByteDance290101/win && ./package.sh'
+    - publish: 'ByteDance290101/win/bytedance-win.zip'
+      artifact: 'ByteDancePluginWin290101'
