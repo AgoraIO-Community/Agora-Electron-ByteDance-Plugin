@@ -15,9 +15,9 @@
 		03858EB022F9AE14000B3983 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03858EAF22F9AE14000B3983 /* OpenGL.framework */; };
 		038B37C223D56A51001B6AFE /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 038B37C123D56A51001B6AFE /* CoreGraphics.framework */; };
 		0399D51222F9B6B7005B129E /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0399D51122F9B6B7005B129E /* CoreMedia.framework */; };
+		039C201A240F6849001B2632 /* libeffect.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 039C2019240F6849001B2632 /* libeffect.dylib */; };
 		03CE9E7B2341C02D00E3565F /* loguru.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 03CE9E792341C02D00E3565F /* loguru.hpp */; };
 		03CE9E7C2341C02D00E3565F /* loguru.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03CE9E7A2341C02D00E3565F /* loguru.cpp */; };
-		03D1EA6323CD63B200605F67 /* libeffect.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 03D1EA6223CD63B200605F67 /* libeffect.dylib */; };
 		03F0143022F9B71500ED4A1A /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03F0142F22F9B71500ED4A1A /* CoreVideo.framework */; };
 		03F0143222F9B83A00ED4A1A /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03F0143122F9B83A00ED4A1A /* CoreFoundation.framework */; };
 		03F0143422F9B86D00ED4A1A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03F0143322F9B86D00ED4A1A /* Foundation.framework */; };
@@ -69,9 +69,9 @@
 		03858EB122F9B5FA000B3983 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		038B37C123D56A51001B6AFE /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		0399D51122F9B6B7005B129E /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
+		039C2019240F6849001B2632 /* libeffect.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libeffect.dylib; path = bytedance/libeffect.dylib; sourceTree = "<group>"; };
 		03CE9E792341C02D00E3565F /* loguru.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = loguru.hpp; sourceTree = "<group>"; };
 		03CE9E7A2341C02D00E3565F /* loguru.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = loguru.cpp; sourceTree = "<group>"; };
-		03D1EA6223CD63B200605F67 /* libeffect.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libeffect.dylib; path = ../sdk/mac/libeffect.dylib; sourceTree = "<group>"; };
 		03D53AD022F98E4F0064D073 /* libByteDancePlugin.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libByteDancePlugin.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		03F0142F22F9B71500ED4A1A /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
 		03F0143122F9B83A00ED4A1A /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
@@ -89,8 +89,8 @@
 				03F0143422F9B86D00ED4A1A /* Foundation.framework in Frameworks */,
 				03F0143222F9B83A00ED4A1A /* CoreFoundation.framework in Frameworks */,
 				03F0143022F9B71500ED4A1A /* CoreVideo.framework in Frameworks */,
+				039C201A240F6849001B2632 /* libeffect.dylib in Frameworks */,
 				0399D51222F9B6B7005B129E /* CoreMedia.framework in Frameworks */,
-				03D1EA6323CD63B200605F67 /* libeffect.dylib in Frameworks */,
 				0315A29122F9B69200B10F6C /* AVFoundation.framework in Frameworks */,
 				03858EB022F9AE14000B3983 /* OpenGL.framework in Frameworks */,
 			);
@@ -196,10 +196,10 @@
 		03D53AC722F98E4F0064D073 = {
 			isa = PBXGroup;
 			children = (
+				039C2019240F6849001B2632 /* libeffect.dylib */,
 				033C828622FDAFB300ABB9EE /* ByteDancePlugin.cpp */,
 				033C828522FDAFB200ABB9EE /* ByteDancePlugin.h */,
 				034651AC23F515ED0065391C /* IAVFramePlugin.h */,
-				03D1EA6223CD63B200605F67 /* libeffect.dylib */,
 				033C828B22FDAFC900ABB9EE /* common */,
 				03D53AD122F98E4F0064D073 /* Products */,
 				03858EAE22F9AE14000B3983 /* Frameworks */,
@@ -411,13 +411,14 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				EXECUTABLE_PREFIX = lib;
-				HEADER_SEARCH_PATHS = "${SRCROOT}/../sdk/mac/byted_effect_mac_headers";
+				HEADER_SEARCH_PATHS = "${SRCROOT}/bytedance/byted_effect_mac_headers";
 				INSTALL_PATH = "@rpath";
 				LD_RUNPATH_SEARCH_PATHS = "@loader_path";
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/../sdk/mac",
 					"$(PROJECT_DIR)",
+					"$(PROJECT_DIR)/bytedance",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -432,13 +433,14 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				EXECUTABLE_PREFIX = lib;
-				HEADER_SEARCH_PATHS = "${SRCROOT}/../sdk/mac/byted_effect_mac_headers";
+				HEADER_SEARCH_PATHS = "${SRCROOT}/bytedance/byted_effect_mac_headers";
 				INSTALL_PATH = "@rpath";
 				LD_RUNPATH_SEARCH_PATHS = "@loader_path";
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/../sdk/mac",
 					"$(PROJECT_DIR)",
+					"$(PROJECT_DIR)/bytedance",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

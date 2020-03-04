@@ -1,10 +1,14 @@
-wget https://github.com/Faceunity/FULiveDemoMac/releases/download/v6.2.0/FaceUnity-SDK-Mac-v6.2.0.zip -O FaceUnity.zip
-unzip -u FaceUnity.zip
-mkdir -p ../FULive
-rm -rf ../FULive/mac
-mv FaceUnity-SDK-Mac ../FULive/mac
+rm -rf byted_effect*
 rm -rf build
-xcodebuild -project FaceUnityPlugin.xcodeproj
+rm -rf bytedance
+
+unzip -u bytedance.zip
+mkdir -p bytedance/byted_effect_mac_headers
+unzip -u byted_effect*/byted_effect_mac_headers.zip -d bytedance/byted_effect_mac_headers
+
+mv byted_effect*/libeffect.dylib bytedance/
+
+rm -rf build
+xcodebuild -project ByteDancePlugin.xcodeproj
 cd build
-mv ../../FULive/mac/Resources ./Release/.
-zip -r fu-mac.zip Release
+zip -r bytedance-mac.zip Release
