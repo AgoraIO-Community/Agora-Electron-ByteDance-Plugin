@@ -92,15 +92,26 @@ protected:
     bool mNeedLoadBundles = true;
     bool mNeedUpdateBundles = true;
     bool mReleased = false;
+    bool mFaceAttributeLoaded = false;
+    bool mFaceAttributeEnabled = false;
+    bool mHandDetectLoaded = false;
+    bool mHandDetectEnabled = false;
+    bool mProcessEnabled = false;
     std::string mLicensePath = "";
     std::string mStickerPath = "";
     std::string mBeautyPath  ="";
+    std::string mHandDetectPath = "";
+    std::string mHandBoxPath = "";
+    std::string mHandGesturePath = "";
+    std::string mHandKPPath = "";
     std::string mFaceDetectPath = "";
     std::string mFaceDetectExtraPath = "";
     std::string mFaceAttributePath = "";
     bef_ai_face_info mFaceInfo;
     bef_ai_face_attribute_info mFaceAttributeInfo;
+    bef_ai_hand_info mHandInfo;
     bef_effect_handle_t m_renderMangerHandle = 0;
+    bef_effect_handle_t m_handDetectHandle = 0;
     bef_effect_handle_t m_faceDetectHandle = 0;
     bef_effect_handle_t m_faceAttributesHandle = 0;
     std::vector<ByteDanceBundle> bundles;
@@ -123,7 +134,6 @@ if(d.HasMember(name)) { \
 #define CHECK_BEF_AI_RET_SUCCESS(ret, mes) \
 if(ret != 0){\
     LOG_F(ERROR, "ByteDancePlugin: error id = %d, %s", ret, mes);\
-    break;\
 }
 
 #if defined(_WIN32)

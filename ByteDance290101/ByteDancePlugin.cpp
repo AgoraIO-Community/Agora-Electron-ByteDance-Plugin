@@ -190,6 +190,8 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             mNeedUpdateBundles = false;
             //need to reload bundles once resume from stopping
             mNeedLoadBundles = true;
+            mFaceAttributeLoaded = false;
+            mHandDetectLoaded = false;
         }
         previousThreadId = tid;
 
@@ -210,7 +212,10 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             
             ret = bef_effect_ai_init(m_renderMangerHandle, 0, 0, mStickerPath.c_str(), "");
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: init effect handle failed !");
-            
+            mNamaInited = true;
+        }
+        
+        if (mNamaInited && mFaceAttributeEnabled && !mFaceAttributeLoaded) {
             //face detect
             ret = bef_effect_ai_face_detect_create(BEF_DETECT_SMALL_MODEL | BEF_DETECT_FULL | BEF_DETECT_MODE_VIDEO, mFaceDetectPath.c_str(), &m_faceDetectHandle);
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: create face detect handle failed !");
@@ -222,78 +227,109 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             
             ret = bef_effect_ai_face_detect_setparam(m_faceDetectHandle, BEF_FACE_PARAM_MAX_FACE_NUM, BEF_MAX_FACE_NUM);
             
-//            ret = bef_effect_ai_face_detect_add_extra_model(m_faceDetectHandle, TT_MOBILE_FACE_280_DETECT , mFaceDetectExtraPath.c_str());
-            
             //face attributes
             ret = bef_effect_ai_face_attribute_create(0, mFaceAttributePath.c_str(), &m_faceAttributesHandle);
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: create face attribute handle failed !");
             
             ret = bef_effect_ai_face_attribute_check_license(m_faceAttributesHandle, mLicensePath.c_str());
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: check_license face attribute failed");
+            mFaceAttributeLoaded = true;
+        }
+        
+        if (mNamaInited && mHandDetectEnabled && !mHandDetectLoaded) {
+            //hand detect
+            ret = bef_effect_ai_hand_detect_create(&m_handDetectHandle, 0);
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: create hand detect handle failed !");
             
-            mNamaInited = true;
+            ret = bef_effect_ai_hand_check_license(m_handDetectHandle, mLicensePath.c_str());
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: check_license hand detect failed");
+            
+            ret = bef_effect_ai_hand_detect_setmodel(m_handDetectHandle, BEF_HAND_MODEL_DETECT, mHandDetectPath.c_str());
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: set hand detect model failed !");
+            
+            ret = bef_effect_ai_hand_detect_setmodel(m_handDetectHandle, BEF_HAND_MODEL_BOX_REG, mHandBoxPath.c_str());
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: set hand box model failed !");
+            
+            ret = bef_effect_ai_hand_detect_setmodel(m_handDetectHandle, BEF_HAND_MODEL_GESTURE_CLS, mHandGesturePath.c_str());
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: set hand gesture model failed !");
+            
+            ret = bef_effect_ai_hand_detect_setmodel(m_handDetectHandle, BEF_HAND_MODEL_KEY_POINT, mHandKPPath.c_str());
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: set hand key points model failed !");
+            
+            ret = bef_effect_ai_hand_detect_setparam(m_handDetectHandle, BEF_HAND_MAX_HAND_NUM, 1);
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: set max hand num failed !");
+            ret = bef_effect_ai_hand_detect_setparam(m_handDetectHandle, BEF_HNAD_ENLARGE_FACTOR_REG, 2.0);
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: set hand enlarge factor failed !");
+            mHandDetectLoaded = true;
         }
         
-        bef_effect_ai_set_width_height(m_renderMangerHandle, videoFrame->width, videoFrame->height);
-        
-        if(mNeedUpdateBundles) {
-            ret = bef_effect_ai_set_beauty(m_renderMangerHandle, mBeautyPath.c_str());
-            LOG_F(INFO, "set beauty: %s, %d", mBeautyPath.c_str(), ret);
-            for (auto const& x : mBeautyOptions)
-            {
-                ret = bef_effect_ai_set_intensity(m_renderMangerHandle, x.first, x.second);
-                LOG_F(INFO, "set beauty intensity:%d,%f, %d", x.first, x.second, ret);
-                
+        if(mNamaInited) {
+            bef_effect_ai_set_width_height(m_renderMangerHandle, videoFrame->width, videoFrame->height);
+                    // 4. make it beautiful
+    #ifndef _WIN32
+            CGLLockContext(_glContext);
+    #endif
+            uint64_t timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+            unsigned char *in_ptr = yuvData(videoFrame);
+            unsigned char* out_ptr = (unsigned char*)malloc(videoFrame->yStride * videoFrame->height * 4);
+            cvt_yuv2rgba(in_ptr, out_ptr, BEF_AI_PIX_FMT_YUV420P, videoFrame->yStride, videoFrame->height, videoFrame->yStride, videoFrame->height, BEF_AI_CLOCKWISE_ROTATE_0, false);
+            
+            if(mFaceAttributeEnabled){
+                if(!mFaceAttributeLoaded){
+                    LOG_F(ERROR, "face attribute enabled but not initialized");
+                } else {
+                    bef_ai_face_info faceInfo;
+                    memset(&faceInfo, 0, sizeof(bef_ai_face_info));
+                    ret = bef_effect_ai_face_detect(m_faceDetectHandle, out_ptr, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, BEF_AI_CLOCKWISE_ROTATE_0, BEF_DETECT_MODE_VIDEO | BEF_DETECT_FULL, &faceInfo);
+                    mFaceInfo = faceInfo;
+                    CHECK_BEF_AI_RET_SUCCESS(ret, "face info detect failed");
+                    if(faceInfo.face_count != 0) {
+                        unsigned long long attriConfig = BEF_FACE_ATTRIBUTE_AGE | BEF_FACE_ATTRIBUTE_HAPPINESS                                |BEF_FACE_ATTRIBUTE_EXPRESSION|BEF_FACE_ATTRIBUTE_GENDER
+                        |BEF_FACE_ATTRIBUTE_RACIAL|BEF_FACE_ATTRIBUTE_ATTRACTIVE;
+                        bef_ai_face_attribute_info attrInfo;
+                        memset(&attrInfo, 0, sizeof(bef_ai_face_attribute_info));
+                        ret = bef_effect_ai_face_attribute_detect(m_faceAttributesHandle, out_ptr, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, faceInfo.base_infos, attriConfig, &attrInfo);
+                        mFaceAttributeInfo = attrInfo;
+                        CHECK_BEF_AI_RET_SUCCESS(ret, "face attribute detect failed");
+                    }
+                }
             }
-            mNeedUpdateBundles = false;
+            
+            if(mHandDetectEnabled){
+                if(!mHandDetectLoaded){
+                    LOG_F(ERROR, "hand detect enabled but not initialized");
+                } else {
+                    bef_ai_hand_info handInfo;
+                    ret = bef_effect_ai_hand_detect(m_handDetectHandle, out_ptr, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, BEF_AI_CLOCKWISE_ROTATE_0,
+                                                       BEF_HAND_MODEL_DETECT | BEF_HAND_MODEL_BOX_REG |
+                                                       BEF_HAND_MODEL_GESTURE_CLS| BEF_HAND_MODEL_KEY_POINT, &handInfo, 0);
+                    mHandInfo = handInfo;
+                    CHECK_BEF_AI_RET_SUCCESS(ret, "gesture info collect failed");
+                }
+            }
+            
+            if(mProcessEnabled) {
+                ret = bef_effect_ai_algorithm_buffer(m_renderMangerHandle, out_ptr,
+                                               BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride,
+                                               videoFrame->height, videoFrame->yStride * 4,
+                                               timestamp);
+                ret = bef_effect_ai_process_buffer(m_renderMangerHandle, out_ptr,
+                                                BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride,
+                                                videoFrame->height, videoFrame->yStride * 4,
+                                                out_ptr, BEF_AI_PIX_FMT_RGBA8888,
+                                                timestamp);
+            }
+    #ifndef _WIN32
+            CGLUnlockContext(_glContext);
+    #endif
+            
+            CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::buffer:: buffer image failed !");
+            cvt_rgba2yuv(out_ptr, in_ptr, BEF_AI_PIX_FMT_YUV420P, videoFrame->width, videoFrame->height);
+            
+            videoFrameData(videoFrame, in_ptr);
+            delete in_ptr;
+            delete out_ptr;
         }
-
-        // 4. make it beautiful
-#ifndef _WIN32
-        CGLLockContext(_glContext);
-#endif
-        uint64_t timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-        unsigned char *in_ptr = yuvData(videoFrame);
-        unsigned char* out_ptr = (unsigned char*)malloc(videoFrame->yStride * videoFrame->height * 4);
-        cvt_yuv2rgba(in_ptr, out_ptr, BEF_AI_PIX_FMT_YUV420P, videoFrame->yStride, videoFrame->height, videoFrame->yStride, videoFrame->height, BEF_AI_CLOCKWISE_ROTATE_0, false);
-        
-        bef_ai_face_info faceInfo;
-        memset(&faceInfo, 0, sizeof(bef_ai_face_info));
-        ret = bef_effect_ai_face_detect(m_faceDetectHandle, out_ptr, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, BEF_AI_CLOCKWISE_ROTATE_0, BEF_DETECT_MODE_VIDEO | BEF_DETECT_FULL, &faceInfo);
-        mFaceInfo = faceInfo;
-        
-        if(faceInfo.face_count == 0) {
-            LOG_F(INFO, "no face detected");
-        } else {
-            unsigned long long attriConfig = BEF_FACE_ATTRIBUTE_AGE | BEF_FACE_ATTRIBUTE_HAPPINESS                                |BEF_FACE_ATTRIBUTE_EXPRESSION|BEF_FACE_ATTRIBUTE_GENDER
-            |BEF_FACE_ATTRIBUTE_RACIAL|BEF_FACE_ATTRIBUTE_ATTRACTIVE;
-            bef_ai_face_attribute_info attrInfo;
-            memset(&attrInfo, 0, sizeof(bef_ai_face_attribute_info));
-            ret = bef_effect_ai_face_attribute_detect(m_faceAttributesHandle, out_ptr, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, faceInfo.base_infos, attriConfig, &attrInfo);
-            mFaceAttributeInfo = attrInfo;
-        }
-        
-        
-        
-        ret = bef_effect_ai_algorithm_buffer(m_renderMangerHandle, out_ptr,
-                                       BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride,
-                                       videoFrame->height, videoFrame->yStride * 4,
-                                       timestamp);
-        ret = bef_effect_ai_process_buffer(m_renderMangerHandle, out_ptr,
-                                        BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride,
-                                        videoFrame->height, videoFrame->yStride * 4,
-                                        out_ptr, BEF_AI_PIX_FMT_RGBA8888,
-                                        timestamp);
-#ifndef _WIN32        
-        CGLUnlockContext(_glContext);
-#endif
-        
-        CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::buffer:: buffer image failed !");
-        cvt_rgba2yuv(out_ptr, in_ptr, BEF_AI_PIX_FMT_YUV420P, videoFrame->width, videoFrame->height);
-        
-        videoFrameData(videoFrame, in_ptr);
-        delete in_ptr;
-        delete out_ptr;
     } while(false);
     
     return true;
@@ -389,6 +425,62 @@ int ByteDancePlugin::setParameter(const char *param)
         }
         mFaceAttributePath = std::string(attributeModelPath.GetString());
     }
+    
+    if(d.HasMember("plugin.bytedance.faceAttributeEnabled")) {
+        Value& enabled = d["plugin.bytedance.faceAttributeEnabled"];
+        if(!enabled.IsBool()) {
+            return -101;
+        }
+        mFaceAttributeEnabled = enabled.GetBool();
+    }
+    
+    if(d.HasMember("plugin.bytedance.faceAttributeModelPath")) {
+        Value& attributeModelPath = d["plugin.bytedance.faceAttributeModelPath"];
+        if(!attributeModelPath.IsString()) {
+            return -101;
+        }
+        mFaceAttributePath = std::string(attributeModelPath.GetString());
+    }
+    
+    if(d.HasMember("plugin.bytedance.handDetectEnabled")) {
+        Value& enabled = d["plugin.bytedance.handDetectEnabled"];
+        if(!enabled.IsBool()) {
+            return -101;
+        }
+        mHandDetectEnabled = enabled.GetBool();
+    }
+    
+    if(d.HasMember("plugin.bytedance.handDetectModelPath")) {
+        Value& path = d["plugin.bytedance.handDetectModelPath"];
+        if(!path.IsString()) {
+            return -101;
+        }
+        mHandDetectPath = std::string(path.GetString());
+    }
+    
+    if(d.HasMember("plugin.bytedance.handBoxModelPath")) {
+        Value& path = d["plugin.bytedance.handBoxModelPath"];
+        if(!path.IsString()) {
+            return -101;
+        }
+        mHandBoxPath = std::string(path.GetString());
+    }
+    
+    if(d.HasMember("plugin.bytedance.handGestureModelPath")) {
+        Value& path = d["plugin.bytedance.handGestureModelPath"];
+        if(!path.IsString()) {
+            return -101;
+        }
+        mHandGesturePath = std::string(path.GetString());
+    }
+    
+    if(d.HasMember("plugin.bytedance.handKPModelPath")) {
+        Value& path = d["plugin.bytedance.handKPModelPath"];
+        if(!path.IsString()) {
+            return -101;
+        }
+        mHandKPPath = std::string(path.GetString());
+    }
 
     if(d.HasMember("plugin.bytedance.beauty.resourcepath")) {
         Value& resourcePath = d["plugin.bytedance.beauty.resourcepath"];
@@ -446,6 +538,21 @@ const char* ByteDancePlugin::getParameter(const char* key)
         writer.Double(mFaceAttributeInfo.racial_type);
             
         writer.EndObject();
+        return strBuf.GetString();
+    } else if(strncmp(key, "plugin.bytedance.hand.info", strlen(key)) == 0) {
+        writer.StartArray();
+        for(int i = 0; i < mHandInfo.hand_count; i++) {
+            bef_ai_hand hand = mHandInfo.p_hands[i];
+            writer.StartObject();
+            writer.Key("action");
+            writer.Int(hand.action);
+                
+            writer.Key("seq_action");
+            writer.Double(hand.seq_action);
+            writer.EndObject();
+        }
+        
+        writer.EndArray();
         return strBuf.GetString();
     }
     return "";
