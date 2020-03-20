@@ -198,10 +198,11 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
         
         // 2. initialize if not yet done
         if (!mNamaInited) {
-            //load nama and initialize
+            //load bytedance and initialize
             if (false == initOpenGL()) {
                 break;
             }
+            
             ret = bef_effect_ai_create(&m_renderMangerHandle);
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: create effect handle failed !");
             
@@ -382,14 +383,14 @@ int ByteDancePlugin::setParameter(const char *param)
     d.Parse(param);
     
     if(d.HasParseError()) {
-        return false;
+        return -100;
     }
     
     
     if(d.HasMember("plugin.bytedance.licensePath")) {
         Value& licencePath = d["plugin.bytedance.licensePath"];
         if(!licencePath.IsString()) {
-            return false;
+            return -101;
         }
         mLicensePath = std::string(licencePath.GetString());
     }
@@ -397,7 +398,7 @@ int ByteDancePlugin::setParameter(const char *param)
     if(d.HasMember("plugin.bytedance.stickerPath")) {
         Value& stickerPath = d["plugin.bytedance.stickerPath"];
         if(!stickerPath.IsString()) {
-            return false;
+            return -101;
         }
         mStickerPath = std::string(stickerPath.GetString());
     }
@@ -405,7 +406,7 @@ int ByteDancePlugin::setParameter(const char *param)
     if(d.HasMember("plugin.bytedance.faceDetectModelPath")) {
         Value& faceDetectModelPath = d["plugin.bytedance.faceDetectModelPath"];
         if(!faceDetectModelPath.IsString()) {
-            return false;
+            return -101;
         }
         mFaceDetectPath = std::string(faceDetectModelPath.GetString());
     }
