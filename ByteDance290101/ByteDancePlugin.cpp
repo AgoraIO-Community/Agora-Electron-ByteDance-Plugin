@@ -42,13 +42,15 @@ PIXELFORMATDESCRIPTOR pfd = {
     0u, 0u };
 #endif
 
-ByteDancePlugin::ByteDancePlugin()
+ByteDancePlugin::ByteDancePlugin():cacheYuvVideoFramePtr(NULL),cacheRGBAVideoFramePtr(NULL)
 {
+
 }
 
 ByteDancePlugin::~ByteDancePlugin()
 {
-    
+    releaseCacheBuffer(cacheYuvVideoFramePtr);
+    releaseCacheBuffer(cacheRGBAVideoFramePtr);
 }
 
 bool ByteDancePlugin::initOpenGL()
@@ -102,17 +104,14 @@ bool ByteDancePlugin::initOpenGL()
 	return true;
 }
 
-unsigned char *ByteDancePlugin::yuvData(VideoPluginFrame* videoFrame)
+void ByteDancePlugin::yuvData(VideoPluginFrame* videoFrame, VideoPluginFrame* dstVideoFrame)
 {
     int ysize = videoFrame->yStride * videoFrame->height;
     int usize = videoFrame->uStride * videoFrame->height / 2;
     int vsize = videoFrame->vStride * videoFrame->height / 2;
-    unsigned char *temp = (unsigned char *)malloc(ysize + usize + vsize);
-    
-    memcpy(temp, videoFrame->yBuffer, ysize);
-    memcpy(temp + ysize, videoFrame->uBuffer, usize);
-    memcpy(temp + ysize + usize, videoFrame->vBuffer, vsize);
-    return (unsigned char *)temp;
+    memcpy(static_cast<unsigned char*>(dstVideoFrame->buffer), videoFrame->yBuffer, ysize);
+    memcpy(static_cast<unsigned char*>(dstVideoFrame->buffer) + ysize, videoFrame->uBuffer, usize);
+    memcpy(static_cast<unsigned char*>(dstVideoFrame->buffer) + ysize + usize, videoFrame->vBuffer, vsize);
 }
 
 int ByteDancePlugin::yuvSize(VideoPluginFrame* videoFrame)
@@ -121,6 +120,82 @@ int ByteDancePlugin::yuvSize(VideoPluginFrame* videoFrame)
     int usize = videoFrame->uStride * videoFrame->height / 2;
     int vsize = videoFrame->vStride * videoFrame->height / 2;
     return ysize + usize + vsize;
+}
+
+int ByteDancePlugin::rgbaSize(VideoPluginFrame* videoFrame)
+{
+    return videoFrame->yStride * videoFrame->height * 4;
+}
+
+void ByteDancePlugin::initCacheVideoFrame(VideoPluginFrame* dstVideoFrame, VideoPluginFrame* srcVideoFrame, VIDEO_FRAME_TYPE type)
+{
+    dstVideoFrame->width = srcVideoFrame->width;
+    dstVideoFrame->height = srcVideoFrame->height;
+    dstVideoFrame->yStride = srcVideoFrame->yStride;
+    dstVideoFrame->uStride = srcVideoFrame->uStride;
+    dstVideoFrame->vStride = srcVideoFrame->vStride;
+
+    switch (type)
+    {
+        case VIDEO_FRAME_TYPE::I420:
+            dstVideoFrame->buffer = malloc(yuvSize(dstVideoFrame));
+            break;
+
+        case VIDEO_FRAME_TYPE::RGBA32:
+            dstVideoFrame->buffer = malloc(rgbaSize(dstVideoFrame));
+            break;
+        default:
+            break;
+    }
+}
+
+void ByteDancePlugin::checkCreateVideoFrame(VideoPluginFrame* videoFrame)
+{
+    if (!cacheYuvVideoFramePtr && !cacheRGBAVideoFramePtr)
+    {
+        cacheYuvVideoFramePtr = new VideoPluginFrame();
+        initCacheVideoFrame(cacheYuvVideoFramePtr, videoFrame, VIDEO_FRAME_TYPE::I420);
+
+        cacheRGBAVideoFramePtr = new VideoPluginFrame();
+        initCacheVideoFrame(cacheRGBAVideoFramePtr, videoFrame, VIDEO_FRAME_TYPE::RGBA32);
+        return;
+    }
+
+    // if video resolution change, we need to resize videoPtr
+    if (cacheYuvVideoFramePtr->width != videoFrame->width
+    || cacheYuvVideoFramePtr->height != videoFrame->height
+    || cacheYuvVideoFramePtr->yStride != videoFrame->yStride
+    || cacheYuvVideoFramePtr->uStride != videoFrame->uStride
+    || cacheYuvVideoFramePtr->vStride != videoFrame->vStride)
+    {
+        releaseCacheBuffer(cacheYuvVideoFramePtr);
+        releaseCacheBuffer(cacheRGBAVideoFramePtr);
+
+        cacheYuvVideoFramePtr = new VideoPluginFrame();
+        initCacheVideoFrame(cacheYuvVideoFramePtr, videoFrame, VIDEO_FRAME_TYPE::I420);
+
+        cacheRGBAVideoFramePtr = new VideoPluginFrame();
+        initCacheVideoFrame(cacheRGBAVideoFramePtr, videoFrame, VIDEO_FRAME_TYPE::RGBA32);
+    }
+}
+
+void ByteDancePlugin::memsetCacheBuffer(VideoPluginFrame *videoFrame)
+{
+    memset(videoFrame->buffer, 0, sizeof(videoFrame->buffer));
+}
+
+void ByteDancePlugin::releaseCacheBuffer(VideoPluginFrame* videoFrame)
+{
+    if (videoFrame)
+    {
+        if (videoFrame->buffer)
+        {
+            delete videoFrame->buffer;
+            videoFrame->buffer = NULL;
+        }
+        delete videoFrame;
+        videoFrame = NULL;
+    }
 }
 
 void ByteDancePlugin::videoFrameData(VideoPluginFrame* videoFrame, unsigned char *yuvData)
@@ -270,10 +345,10 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
     #ifndef _WIN32
             CGLLockContext(_glContext);
     #endif
+            checkCreateVideoFrame(videoFrame);
+            yuvData(videoFrame, cacheYuvVideoFramePtr);
             uint64_t timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-            unsigned char *in_ptr = yuvData(videoFrame);
-            unsigned char* out_ptr = (unsigned char*)malloc(videoFrame->yStride * videoFrame->height * 4);
-            cvt_yuv2rgba(in_ptr, out_ptr, BEF_AI_PIX_FMT_YUV420P, videoFrame->yStride, videoFrame->height, videoFrame->yStride, videoFrame->height, BEF_AI_CLOCKWISE_ROTATE_0, false);
+            cvt_yuv2rgba((unsigned char*)cacheYuvVideoFramePtr->buffer,(unsigned char*)cacheRGBAVideoFramePtr->buffer, BEF_AI_PIX_FMT_YUV420P, videoFrame->yStride, videoFrame->height, videoFrame->yStride, videoFrame->height, BEF_AI_CLOCKWISE_ROTATE_0, false);
             
             if(mFaceAttributeEnabled){
                 if(!mFaceAttributeLoaded){
@@ -281,7 +356,7 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
                 } else {
                     bef_ai_face_info faceInfo;
                     memset(&faceInfo, 0, sizeof(bef_ai_face_info));
-                    ret = bef_effect_ai_face_detect(m_faceDetectHandle, out_ptr, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, BEF_AI_CLOCKWISE_ROTATE_0, BEF_DETECT_MODE_VIDEO | BEF_DETECT_FULL, &faceInfo);
+                    ret = bef_effect_ai_face_detect(m_faceDetectHandle, (unsigned char*)cacheRGBAVideoFramePtr->buffer, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, BEF_AI_CLOCKWISE_ROTATE_0, BEF_DETECT_MODE_VIDEO | BEF_DETECT_FULL, &faceInfo);
                     mFaceInfo = faceInfo;
                     CHECK_BEF_AI_RET_SUCCESS(ret, "face info detect failed");
                     if(faceInfo.face_count != 0) {
@@ -289,7 +364,7 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
                         |BEF_FACE_ATTRIBUTE_RACIAL|BEF_FACE_ATTRIBUTE_ATTRACTIVE;
                         bef_ai_face_attribute_info attrInfo;
                         memset(&attrInfo, 0, sizeof(bef_ai_face_attribute_info));
-                        ret = bef_effect_ai_face_attribute_detect(m_faceAttributesHandle, out_ptr, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, faceInfo.base_infos, attriConfig, &attrInfo);
+                        ret = bef_effect_ai_face_attribute_detect(m_faceAttributesHandle, (unsigned char*)cacheRGBAVideoFramePtr->buffer, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, faceInfo.base_infos, attriConfig, &attrInfo);
                         mFaceAttributeInfo = attrInfo;
                         CHECK_BEF_AI_RET_SUCCESS(ret, "face attribute detect failed");
                     }
@@ -301,7 +376,7 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
                     LOG_F(ERROR, "hand detect enabled but not initialized");
                 } else {
                     bef_ai_hand_info handInfo;
-                    ret = bef_effect_ai_hand_detect(m_handDetectHandle, out_ptr, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, BEF_AI_CLOCKWISE_ROTATE_0,
+                    ret = bef_effect_ai_hand_detect(m_handDetectHandle, (unsigned char*)cacheRGBAVideoFramePtr->buffer, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, BEF_AI_CLOCKWISE_ROTATE_0,
                                                        BEF_HAND_MODEL_DETECT | BEF_HAND_MODEL_BOX_REG |
                                                        BEF_HAND_MODEL_GESTURE_CLS| BEF_HAND_MODEL_KEY_POINT, &handInfo, 0);
                     mHandInfo = handInfo;
@@ -310,14 +385,14 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             }
             
             if(mProcessEnabled) {
-                ret = bef_effect_ai_algorithm_buffer(m_renderMangerHandle, out_ptr,
+                ret = bef_effect_ai_algorithm_buffer(m_renderMangerHandle, (unsigned char*)cacheRGBAVideoFramePtr->buffer,
                                                BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride,
                                                videoFrame->height, videoFrame->yStride * 4,
                                                timestamp);
-                ret = bef_effect_ai_process_buffer(m_renderMangerHandle, out_ptr,
+                ret = bef_effect_ai_process_buffer(m_renderMangerHandle, (unsigned char*)cacheRGBAVideoFramePtr->buffer,
                                                 BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride,
                                                 videoFrame->height, videoFrame->yStride * 4,
-                                                out_ptr, BEF_AI_PIX_FMT_RGBA8888,
+                                                (unsigned char*)cacheRGBAVideoFramePtr->buffer, BEF_AI_PIX_FMT_RGBA8888,
                                                 timestamp);
             }
     #ifndef _WIN32
@@ -325,11 +400,11 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
     #endif
             
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::buffer:: buffer image failed !");
-            cvt_rgba2yuv(out_ptr, in_ptr, BEF_AI_PIX_FMT_YUV420P, videoFrame->width, videoFrame->height);
+            cvt_rgba2yuv((unsigned char*)cacheRGBAVideoFramePtr->buffer, (unsigned char*)cacheYuvVideoFramePtr->buffer, BEF_AI_PIX_FMT_YUV420P, videoFrame->width, videoFrame->height);
             
-            videoFrameData(videoFrame, in_ptr);
-            delete in_ptr;
-            delete out_ptr;
+            videoFrameData(videoFrame, (unsigned char*)cacheYuvVideoFramePtr->buffer);
+            memsetCacheBuffer(cacheYuvVideoFramePtr);
+            memsetCacheBuffer(cacheRGBAVideoFramePtr);
         }
     } while(false);
     
@@ -347,7 +422,6 @@ int ByteDancePlugin::load(const char *path)
     
     std::string sPath(path);
     folderPath = sPath;
-    
     
     mLoaded = true;
     mReleased = false;
@@ -563,6 +637,7 @@ int ByteDancePlugin::release()
 {
     mReleased = true;
     folderPath = "";
+    delete this;
     return 0;
 }
 
