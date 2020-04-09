@@ -45,7 +45,7 @@ struct VideoPluginFrame {
     int rotation; // rotation of this frame (0, 90, 180, 270)
     int64_t renderTimeMs;
     int avsync_type;
-    void *buffer;
+    void* buffer;
   };
 class IAVFramePluginCallback {
 public:

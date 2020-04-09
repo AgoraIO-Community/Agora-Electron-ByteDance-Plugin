@@ -179,7 +179,7 @@ void ByteDancePlugin::checkCreateVideoFrame(VideoPluginFrame* videoFrame)
     }
 }
 
-void ByteDancePlugin::memsetCacheBuffer(VideoPluginFrame *videoFrame)
+void ByteDancePlugin::memsetCacheBuffer(VideoPluginFrame* videoFrame)
 {
     memset(videoFrame->buffer, 0, sizeof(videoFrame->buffer));
 }

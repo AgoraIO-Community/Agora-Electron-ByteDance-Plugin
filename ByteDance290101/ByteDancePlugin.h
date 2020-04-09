@@ -129,8 +129,8 @@ protected:
 #ifndef _WIN32
     CGLContextObj _glContext;
 #endif
-    VideoPluginFrame *cacheYuvVideoFramePtr;
-    VideoPluginFrame *cacheRGBAVideoFramePtr;
+    VideoPluginFrame* cacheYuvVideoFramePtr;
+    VideoPluginFrame* cacheRGBAVideoFramePtr;
 };
 
 #define READ_DOUBLE_VALUE_PARAM(d, name, newvalue) \
