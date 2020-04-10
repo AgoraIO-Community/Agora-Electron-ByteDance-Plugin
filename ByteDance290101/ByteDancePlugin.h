@@ -39,7 +39,6 @@
 #include <unistd.h>
 #endif // WIN32
 
-
 using namespace rapidjson;
 
 enum ByteDancePluginStatus
@@ -47,6 +46,12 @@ enum ByteDancePluginStatus
     ByteDance_PLUGIN_STATUS_STOPPED = 0,
     ByteDance_PLUGIN_STATUS_STOPPING = 1,
     ByteDance_PLUGIN_STATUS_STARTED = 2
+};
+
+enum VIDEO_FRAME_TYPE
+{
+    I420 = 0,
+    RGBA32 = 1
 };
 
 struct ByteDanceBundle {
@@ -77,9 +82,13 @@ public:
 protected:
     bool initOpenGL();
     void videoFrameData(VideoPluginFrame* videoFrame, unsigned char *yuvData);
-    unsigned char *yuvData(VideoPluginFrame* videoFrame);
+    void yuvData(VideoPluginFrame* srcVideoFrame, VideoPluginFrame* dstVideoFrame);
     int yuvSize(VideoPluginFrame* videoFrame);
-    
+    int rgbaSize(VideoPluginFrame* videoFrame);
+    void checkCreateVideoFrame(VideoPluginFrame* videoFrame);
+    void initCacheVideoFrame(VideoPluginFrame* dstVideoFrame, VideoPluginFrame* srcVideoFrame, VIDEO_FRAME_TYPE type);
+    void memsetCacheBuffer(VideoPluginFrame* videoFrame);
+    void releaseCacheBuffer(VideoPluginFrame* videoFrame);
     std::string folderPath;
     rapidjson::StringBuffer strBuf;
     bool switching = false;
@@ -120,6 +129,8 @@ protected:
 #ifndef _WIN32
     CGLContextObj _glContext;
 #endif
+    VideoPluginFrame* cacheYuvVideoFramePtr;
+    VideoPluginFrame* cacheRGBAVideoFramePtr;
 };
 
 #define READ_DOUBLE_VALUE_PARAM(d, name, newvalue) \
