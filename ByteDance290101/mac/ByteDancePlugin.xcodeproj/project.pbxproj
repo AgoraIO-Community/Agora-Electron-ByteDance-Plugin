@@ -12,6 +12,7 @@
 		033C828822FDAFB300ABB9EE /* ByteDancePlugin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 033C828622FDAFB300ABB9EE /* ByteDancePlugin.cpp */; };
 		033C829422FDB18F00ABB9EE /* Utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 033C828E22FDAFC900ABB9EE /* Utils.cpp */; };
 		034651AD23F515ED0065391C /* IAVFramePlugin.h in Headers */ = {isa = PBXBuildFile; fileRef = 034651AC23F515ED0065391C /* IAVFramePlugin.h */; };
+		034EC36F244B418F0086CB3F /* misc.h in Headers */ = {isa = PBXBuildFile; fileRef = 034EC36E244B418F0086CB3F /* misc.h */; };
 		03858EB022F9AE14000B3983 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03858EAF22F9AE14000B3983 /* OpenGL.framework */; };
 		038B37C223D56A51001B6AFE /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 038B37C123D56A51001B6AFE /* CoreGraphics.framework */; };
 		0399D51222F9B6B7005B129E /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0399D51122F9B6B7005B129E /* CoreMedia.framework */; };
@@ -65,6 +66,7 @@
 		033C82E12302878100ABB9EE /* inttypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = inttypes.h; sourceTree = "<group>"; };
 		033C82E22302878100ABB9EE /* stdint.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = stdint.h; sourceTree = "<group>"; };
 		034651AC23F515ED0065391C /* IAVFramePlugin.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IAVFramePlugin.h; path = ../IAVFramePlugin.h; sourceTree = "<group>"; };
+		034EC36E244B418F0086CB3F /* misc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = misc.h; sourceTree = "<group>"; };
 		03858EAF22F9AE14000B3983 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		03858EB122F9B5FA000B3983 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		038B37C123D56A51001B6AFE /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
@@ -102,6 +104,7 @@
 		033C828B22FDAFC900ABB9EE /* common */ = {
 			isa = PBXGroup;
 			children = (
+				034EC36E244B418F0086CB3F /* misc.h */,
 				033C82BC2302878100ABB9EE /* rapidjson */,
 				03CE9E7A2341C02D00E3565F /* loguru.cpp */,
 				03CE9E792341C02D00E3565F /* loguru.hpp */,
@@ -221,6 +224,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				034EC36F244B418F0086CB3F /* misc.h in Headers */,
 				033C828722FDAFB300ABB9EE /* ByteDancePlugin.h in Headers */,
 				03CE9E7B2341C02D00E3565F /* loguru.hpp in Headers */,
 				034651AD23F515ED0065391C /* IAVFramePlugin.h in Headers */,
@@ -422,6 +426,7 @@
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				SYSTEM_HEADER_SEARCH_PATHS = /usr/local/opt/openssl/include;
 			};
 			name = Debug;
 		};
@@ -444,6 +449,7 @@
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				SYSTEM_HEADER_SEARCH_PATHS = /usr/local/opt/openssl/include;
 			};
 			name = Release;
 		};

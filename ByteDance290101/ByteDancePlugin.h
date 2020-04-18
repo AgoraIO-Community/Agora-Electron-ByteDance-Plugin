@@ -13,6 +13,7 @@
 #include "bef_effect_ai_api.h"
 #include "bef_effect_ai_face_detect.h"
 #include "bef_effect_ai_face_attribute.h"
+#include "bef_effect_ai_auth_msg.h"
 #include "bef_effect_ai_hand.h"
 #include <string>
 #include <thread>
@@ -101,12 +102,20 @@ protected:
     bool mNeedLoadBundles = true;
     bool mNeedUpdateBundles = true;
     bool mReleased = false;
+    bool mAIEffectLoaded = false;
+    bool mAIEffectEnabled = false;
+    bool mAIEffectNeedUpdate = false;
     bool mFaceAttributeLoaded = false;
     bool mFaceAttributeEnabled = false;
     bool mHandDetectLoaded = false;
     bool mHandDetectEnabled = false;
-    bool mProcessEnabled = false;
+    char** mAINodes;
+    SizeType mAINodeCount = 0;
+    std::vector<float> mAINodeIntensities;
+    std::vector<std::string> mAINodeKeys;
     std::string mLicensePath = "";
+    std::string mLicenseKey = "";
+    std::string mLicenseSecret = "";
     std::string mStickerPath = "";
     std::string mBeautyPath  ="";
     std::string mHandDetectPath = "";

@@ -13,6 +13,10 @@
 #include <iostream>
 #include "bef_effect_ai_yuv_process.h"
 #include <chrono>
+#include <openssl/hmac.h>
+#include <openssl/sha.h>
+#include "misc.h"
+
 
 
 #define MAX_PATH 512
@@ -41,6 +45,39 @@ PIXELFORMATDESCRIPTOR pfd = {
     0u,
     0u, 0u };
 #endif
+
+std::vector<uint8_t>
+HMAC_SHA256(const std::vector<uint8_t>& key
+       ,const std::vector<uint8_t>& value) {
+
+    unsigned int len = SHA256_DIGEST_LENGTH;
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    size_t keyLen = key.size();
+    size_t valueLen = value.size();
+
+    HMAC_CTX *hmac = HMAC_CTX_new();
+
+    HMAC_Init_ex(hmac, (unsigned char*)key.data(), keyLen, EVP_sha256(), NULL);
+    HMAC_Update(hmac, (unsigned char*)value.data(), valueLen);
+    HMAC_Final(hmac, hash, &len);
+    HMAC_CTX_free(hmac);
+
+    return std::vector<uint8_t>((uint8_t*)hash,(uint8_t*)hash+SHA256_DIGEST_LENGTH);
+}
+
+
+std::string hexitize(const std::vector<unsigned char>& input, const char* const digits = "0123456789ABCDEF") {
+
+    std::ostringstream output;
+
+    for (unsigned char gap = 0; gap < input.size();) {
+        unsigned char beg = input[gap];
+        ++gap;
+        output << digits[beg >> 4] << digits[beg & 15];
+    }
+    return output.str();
+}
+
 
 ByteDancePlugin::ByteDancePlugin():cacheYuvVideoFramePtr(NULL),cacheRGBAVideoFramePtr(NULL)
 {
@@ -242,6 +279,7 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             mNamaInited = false;
             //no need to update bundle option as bundles will be reloaded anyway
             mNeedUpdateBundles = false;
+            mAIEffectNeedUpdate = false;
             //need to reload bundles once resume from stopping
             mNeedLoadBundles = true;
         }
@@ -267,6 +305,8 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             mNeedLoadBundles = true;
             mFaceAttributeLoaded = false;
             mHandDetectLoaded = false;
+            mAIEffectNeedUpdate = false;
+            mAIEffectLoaded = false;
         }
         previousThreadId = tid;
 
@@ -277,7 +317,10 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             if (false == initOpenGL()) {
                 break;
             }
-            
+            mNamaInited = true;
+        }
+        
+        if (mNamaInited && mAIEffectEnabled && !mAIEffectLoaded) {
             ret = bef_effect_ai_create(&m_renderMangerHandle);
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: create effect handle failed !");
             
@@ -288,8 +331,24 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             
             ret = bef_effect_ai_init(m_renderMangerHandle, 0, 0, mStickerPath.c_str(), "");
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: init effect handle failed !");
-            mNamaInited = true;
+            mAIEffectLoaded = true;
         }
+        
+        if(mNamaInited && mAIEffectNeedUpdate) {
+            ret = bef_effect_ai_composer_set_nodes(m_renderMangerHandle, (const char **)mAINodes, mAINodeCount);
+            CHECK_BEF_AI_RET_SUCCESS(ret, "ByteDancePlugin::onPluginCaptureVideoFrame:: composer set nodes failed !");
+            
+            for(SizeType i = 0; i < mAINodeCount; i++) {
+                ret = bef_effect_ai_composer_update_node(m_renderMangerHandle, mAINodes[i], mAINodeKeys[i].c_str(), mAINodeIntensities[i]);
+                if(ret != 0){\
+                    LOG_F(ERROR, "ByteDancePlugin: error id = %d, ByteDancePlugin::onPluginCaptureVideoFrame:: update composer failed %s %s %f", ret, mAINodeKeys[i].c_str(), mAINodes[i], mAINodeIntensities[i]);
+                }
+            }
+            
+            mAIEffectNeedUpdate = false;
+        }
+        
+//        bef_effect_result_t result = bef_effect_ai_composer_set_nodes(m_renderMangerHandle, (const char **)nodesPath, count);
         
         if (mNamaInited && mFaceAttributeEnabled && !mFaceAttributeLoaded) {
             //face detect
@@ -384,7 +443,7 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
                 }
             }
             
-            if(mProcessEnabled) {
+            if(mAIEffectEnabled && mAIEffectLoaded) {
                 ret = bef_effect_ai_algorithm_buffer(m_renderMangerHandle, (unsigned char*)cacheRGBAVideoFramePtr->buffer,
                                                BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride,
                                                videoFrame->height, videoFrame->yStride * 4,
@@ -460,6 +519,22 @@ int ByteDancePlugin::setParameter(const char *param)
         return -100;
     }
     
+    
+    if(d.HasMember("plugin.bytedance.licenseKey")) {
+        Value& licenceKey = d["plugin.bytedance.licenseKey"];
+        if(!licenceKey.IsString()) {
+            return -101;
+        }
+        mLicenseKey = std::string(licenceKey.GetString());
+    }
+    
+    if(d.HasMember("plugin.bytedance.licenseSecret")) {
+        Value& licenseSecret = d["plugin.bytedance.licenseSecret"];
+        if(!licenseSecret.IsString()) {
+            return -101;
+        }
+        mLicenseSecret = std::string(licenseSecret.GetString());
+    }
     
     if(d.HasMember("plugin.bytedance.licensePath")) {
         Value& licencePath = d["plugin.bytedance.licensePath"];
@@ -556,32 +631,60 @@ int ByteDancePlugin::setParameter(const char *param)
         }
         mHandKPPath = std::string(path.GetString());
     }
-
-    if(d.HasMember("plugin.bytedance.beauty.resourcepath")) {
-        Value& resourcePath = d["plugin.bytedance.beauty.resourcepath"];
-        if(!resourcePath.IsString()) {
+    
+    if(d.HasMember("plugin.bytedance.aiEffectEnabled")) {
+        Value& enabled = d["plugin.bytedance.aiEffectEnabled"];
+        if(!enabled.IsBool()) {
             return -101;
         }
-        mBeautyPath = resourcePath.GetString();
+        mAIEffectEnabled = enabled.GetBool();
     }
     
-    if(d.HasMember("plugin.bytedance.beauty.intensity")) {
-        Value& options = d["plugin.bytedance.beauty.intensity"];
-        if(!options.IsObject()) {
+    if(d.HasMember("plugin.bytedance.handDetectModelPath")) {
+        Value& path = d["plugin.bytedance.handDetectModelPath"];
+        if(!path.IsString()) {
             return -101;
         }
-        mBeautyOptions.clear();
-        for (Value::ConstMemberIterator itr = options.MemberBegin();
-             itr != options.MemberEnd(); ++itr)
-        {
-            int intensityKey = std::stoi(itr->name.GetString());
-            const Value& intensityValue = itr->value;
+        mHandDetectPath = std::string(path.GetString());
+    }
+    
+    if(d.HasMember("plugin.bytedance.ai.composer.nodes")) {
+        Value& nodes = d["plugin.bytedance.ai.composer.nodes"];
+        if(!nodes.IsArray()) {
+            return -101;
+        }
+        
+        for (int i = 0; i < mAINodeCount; i++) {
+            free(mAINodes[i]);
+        }
+        free(mAINodes);
+        mAINodeIntensities.clear();
+        
+        mAINodeCount = nodes.Size();
+        mAINodes = (char **)malloc(nodes.Size() * sizeof(char *));
+        for (SizeType i = 0; i < nodes.Size(); i++) {
+            if(!nodes[i].IsObject()) {
+                return -101;
+            }
+            Value& node = nodes[i];
             
-            mBeautyOptions.insert(std::map<int, double>::value_type(intensityKey, intensityValue.GetDouble()));
+            if(node.HasMember("path") && node.HasMember("key") && node.HasMember("intensity")) {
+                Value& vPath = node["path"];
+                Value& vKey = node["key"];
+                Value& vIntensity = node["intensity"];
+                const char* path = vPath.GetString();
+                size_t strLength = strlen(path);
+                mAINodes[i] = (char *)malloc((strLength + 1) * sizeof(char *));
+                strncpy(mAINodes[i], path, strLength);
+                mAINodes[i][strLength] = '\0';
+                mAINodeKeys.push_back(vKey.GetString());
+                mAINodeIntensities.push_back(vIntensity.GetFloat());
+            } else {
+                LOG_F(ERROR, "plugin.bytedance.ai.composer.nodes param error: idx %d", i);
+            }
         }
-        mNeedUpdateBundles = true;
+        mAIEffectNeedUpdate = true;
     }
-    
     
     return 0;
 }
@@ -592,6 +695,36 @@ const char* ByteDancePlugin::getParameter(const char* key)
     rapidjson::Writer<rapidjson::StringBuffer> writer(strBuf);
     writer.SetMaxDecimalPlaces(3);
     if (strncmp(key, "plugin.bytedance.face.info", strlen(key)) == 0) {
+        char* authMsg;
+        int len;
+        bef_effect_result_t result = bef_effect_ai_get_auth_msg(&authMsg, &len);
+        auto nonce = rand();
+        int timestamp = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        const char* secret = mLicenseSecret.c_str();
+        const char* key = mLicenseKey.c_str();
+        // payload['digest'] = crypto.HMAC_SHA256(secret, bytes(key + str(payload['nonce']) + str(payload['timestamp']) + authMsg).encode('utf-8'))
+        auto digest = HMAC_SHA256(
+            std::vector<unsigned char>{secret, secret+strlen(secret)},
+            Misc::concat(key, std::to_string(nonce), std::to_string(timestamp), authMsg)
+        );
+        writer.StartObject();
+        writer.Key("key");
+        writer.String(key);
+        
+        writer.Key("authMsg");
+        writer.String(authMsg);
+        
+        writer.Key("nonce");
+        writer.Int(nonce);
+        
+        writer.Key("timestamp");
+        writer.Int(timestamp);
+        
+        writer.Key("digest");
+        writer.String(hexitize(digest).c_str());
+        writer.EndObject();
+        return strBuf.GetString();
+    } else if (strncmp(key, "plugin.bytedance.face.info", strlen(key)) == 0) {
     } else if(strncmp(key, "plugin.bytedance.face.attribute", strlen(key)) == 0) {
         writer.StartObject();
         writer.Key("age");
