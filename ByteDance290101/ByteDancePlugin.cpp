@@ -694,7 +694,7 @@ const char* ByteDancePlugin::getParameter(const char* key)
     strBuf.Clear();
     rapidjson::Writer<rapidjson::StringBuffer> writer(strBuf);
     writer.SetMaxDecimalPlaces(3);
-    if (strncmp(key, "plugin.bytedance.face.info", strlen(key)) == 0) {
+    if (strncmp(key, "plugin.bytedance.authdata", strlen(key)) == 0) {
         char* authMsg;
         int len;
         bef_effect_result_t result = bef_effect_ai_get_auth_msg(&authMsg, &len);
