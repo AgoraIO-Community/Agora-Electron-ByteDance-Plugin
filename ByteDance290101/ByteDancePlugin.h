@@ -32,6 +32,8 @@
 #pragma comment(lib, "opengl32.lib")
 #pragma comment(lib, "glu32.lib")
 #pragma comment(lib, "glew32.lib")
+#pragma comment(lib, "openssl.lib")
+#pragma comment(lib, "libcrypto.lib")
 #else
 #include <dlfcn.h>
 #define GL_SILENCE_DEPRECATION
