@@ -1,10 +1,12 @@
 rm -rf byted_effect*
 rm -rf build
 rm -rf bytedance
+rm -rf openssl
 
 unzip -u bytedance.zip
 mkdir -p bytedance/byted_effect_mac_headers
 unzip -u byted_effect*/byted_effect_mac_headers.zip -d bytedance/byted_effect_mac_headers
+unzip -u openssl
 
 xattr -r -d com.apple.quarantine byted_effect*/libeffect.dylib
 
