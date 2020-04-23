@@ -426,7 +426,7 @@
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				SYSTEM_HEADER_SEARCH_PATHS = /usr/local/opt/openssl/include;
+				SYSTEM_HEADER_SEARCH_PATHS = "${SRCROOT}/openssl/include";
 			};
 			name = Debug;
 		};
@@ -449,7 +449,7 @@
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				SYSTEM_HEADER_SEARCH_PATHS = /usr/local/opt/openssl/include;
+				SYSTEM_HEADER_SEARCH_PATHS = "${SRCROOT}/openssl/include";
 			};
 			name = Release;
 		};
