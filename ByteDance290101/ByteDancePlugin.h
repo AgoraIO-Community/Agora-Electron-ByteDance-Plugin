@@ -18,15 +18,19 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <iostream>
+#include <fstream>
 #include <map>
 #include "common/rapidjson/document.h"
 #include "common/rapidjson/writer.h"
 #include "common/rapidjson/stringbuffer.h"
 #include "common/loguru.hpp"
+#include "base64.h"
 
 
 #ifdef _WIN32
 #include "windows.h"
+#include <io.h>
 #include "glew.h"
 #pragma comment(lib, "effect.lib")
 #pragma comment(lib, "opengl32.lib")
@@ -46,102 +50,105 @@ using namespace rapidjson;
 
 enum ByteDancePluginStatus
 {
-    ByteDance_PLUGIN_STATUS_STOPPED = 0,
-    ByteDance_PLUGIN_STATUS_STOPPING = 1,
-    ByteDance_PLUGIN_STATUS_STARTED = 2
+	ByteDance_PLUGIN_STATUS_STOPPED = 0,
+	ByteDance_PLUGIN_STATUS_STOPPING = 1,
+	ByteDance_PLUGIN_STATUS_STARTED = 2
 };
 
 enum VIDEO_FRAME_TYPE
 {
-    I420 = 0,
-    RGBA32 = 1
+	I420 = 0,
+	RGBA32 = 1
 };
 
 struct ByteDanceBundle {
-    std::string bundleName;
-    std::string options;
-    bool updated;
+	std::string bundleName;
+	std::string options;
+	bool updated;
 };
 
 class ByteDancePlugin : public IAVFramePlugin
 {
 public:
-    ByteDancePlugin();
-    ~ByteDancePlugin();
-    virtual bool onPluginCaptureVideoFrame(VideoPluginFrame* videoFrame) override;
-    virtual bool onPluginRenderVideoFrame(unsigned int uid, VideoPluginFrame* videoFrame) override;
-    virtual bool onPluginRecordAudioFrame(AudioPluginFrame* audioFrame) override;
-    virtual bool onPluginPlaybackAudioFrame(AudioPluginFrame* audioFrame) override;
-    virtual bool onPluginMixedAudioFrame(AudioPluginFrame* audioFrame) override;
-    virtual bool onPluginPlaybackAudioFrameBeforeMixing(unsigned int uid, AudioPluginFrame* audioFrame) override;
-    
-    virtual int load(const char* path) override;
-    virtual int unLoad() override;
-    virtual int enable() override;
-    virtual int disable() override;
-    virtual int setParameter(const char* param) override;
-    virtual const char* getParameter(const char* key) override;
-    virtual int release() override;
+	ByteDancePlugin();
+	~ByteDancePlugin();
+	virtual bool onPluginCaptureVideoFrame(VideoPluginFrame* videoFrame) override;
+	virtual bool onPluginRenderVideoFrame(unsigned int uid, VideoPluginFrame* videoFrame) override;
+	virtual bool onPluginRecordAudioFrame(AudioPluginFrame* audioFrame) override;
+	virtual bool onPluginPlaybackAudioFrame(AudioPluginFrame* audioFrame) override;
+	virtual bool onPluginMixedAudioFrame(AudioPluginFrame* audioFrame) override;
+	virtual bool onPluginPlaybackAudioFrameBeforeMixing(unsigned int uid, AudioPluginFrame* audioFrame) override;
+
+	virtual int load(const char* path) override;
+	virtual int unLoad() override;
+	virtual int enable() override;
+	virtual int disable() override;
+	virtual int setParameter(const char* param) override;
+	virtual const char* getParameter(const char* key) override;
+	virtual int release() override;
 protected:
-    bool initOpenGL();
-    void videoFrameData(VideoPluginFrame* videoFrame, unsigned char *yuvData);
-    void yuvData(VideoPluginFrame* srcVideoFrame, VideoPluginFrame* dstVideoFrame);
-    int yuvSize(VideoPluginFrame* videoFrame);
-    int rgbaSize(VideoPluginFrame* videoFrame);
-    void checkCreateVideoFrame(VideoPluginFrame* videoFrame);
-    void initCacheVideoFrame(VideoPluginFrame* dstVideoFrame, VideoPluginFrame* srcVideoFrame, VIDEO_FRAME_TYPE type);
-    void memsetCacheBuffer(VideoPluginFrame* videoFrame);
-    void releaseCacheBuffer(VideoPluginFrame* videoFrame);
-    std::string folderPath;
-    rapidjson::StringBuffer strBuf;
-    bool switching = false;
+	bool initOpenGL();
+	void videoFrameData(VideoPluginFrame* videoFrame, unsigned char *yuvData);
+	void yuvData(VideoPluginFrame* srcVideoFrame, VideoPluginFrame* dstVideoFrame);
+	int yuvSize(VideoPluginFrame* videoFrame);
+	int rgbaSize(VideoPluginFrame* videoFrame);
+	void checkCreateVideoFrame(VideoPluginFrame* videoFrame);
+	void initCacheVideoFrame(VideoPluginFrame* dstVideoFrame, VideoPluginFrame* srcVideoFrame, VIDEO_FRAME_TYPE type);
+	void memsetCacheBuffer(VideoPluginFrame* videoFrame);
+	void releaseCacheBuffer(VideoPluginFrame* videoFrame);
+	std::string folderPath;
+	rapidjson::StringBuffer strBuf;
+	bool switching = false;
 #if defined(_WIN32)
-    int previousThreadId;
+	int previousThreadId;
 #else
-    uint64_t previousThreadId;
+	uint64_t previousThreadId;
 #endif
-    bool mLoaded = false;
-    bool mNeedLoadBundles = true;
-    bool mNeedUpdateBundles = true;
-    bool mReleased = false;
-    bool mAIEffectLoaded = false;
-    bool mAIEffectEnabled = false;
-    bool mAIEffectNeedUpdate = false;
-    bool mFaceAttributeLoaded = false;
-    bool mFaceAttributeEnabled = false;
-    bool mHandDetectLoaded = false;
-    bool mHandDetectEnabled = false;
-    char** mAINodes;
-    SizeType mAINodeCount = 0;
-    std::vector<float> mAINodeIntensities;
-    std::vector<std::string> mAINodeKeys;
-    std::string mLicensePath = "";
-    std::string mLicenseKey = "";
-    std::string mLicenseSecret = "";
-    std::string mStickerPath = "";
-    std::string mBeautyPath  ="";
-    std::string mHandDetectPath = "";
-    std::string mHandBoxPath = "";
-    std::string mHandGesturePath = "";
-    std::string mHandKPPath = "";
-    std::string mFaceDetectPath = "";
-    std::string mFaceDetectExtraPath = "";
-    std::string mFaceAttributePath = "";
-    bef_ai_face_info mFaceInfo;
-    bef_ai_face_attribute_info mFaceAttributeInfo;
-    bef_ai_hand_info mHandInfo;
-    bef_effect_handle_t m_renderMangerHandle = 0;
-    bef_effect_handle_t m_handDetectHandle = 0;
-    bef_effect_handle_t m_faceDetectHandle = 0;
-    bef_effect_handle_t m_faceAttributesHandle = 0;
-    std::vector<ByteDanceBundle> bundles;
-    std::map<int, double> mBeautyOptions;
-    std::unique_ptr<int> items;
+	bool mLoaded = false;
+	bool mNeedLoadBundles = true;
+	bool mNeedUpdateBundles = true;
+	bool mReleased = false;
+	bool mAIEffectLoaded = false;
+	bool mAIEffectEnabled = false;
+	bool mAIEffectNeedUpdate = false;
+	bool mFaceAttributeLoaded = false;
+	bool mFaceAttributeEnabled = false;
+	bool mHandDetectLoaded = false;
+	bool mHandDetectEnabled = false;
+	char** mAINodes;
+	SizeType mAINodeCount = 0;
+	std::vector<float> mAINodeIntensities;
+	std::vector<std::string> mAINodeKeys;
+	std::string mLicensePath = "";
+	std::string mLicenseKey = "";
+	std::string mLicenseSecret = "";
+	std::string mLicenseData = "";
+	std::string mLicenseDigest = "";
+	std::string mLicenseDirPath = "";
+	std::string mStickerPath = "";
+	std::string mBeautyPath = "";
+	std::string mHandDetectPath = "";
+	std::string mHandBoxPath = "";
+	std::string mHandGesturePath = "";
+	std::string mHandKPPath = "";
+	std::string mFaceDetectPath = "";
+	std::string mFaceDetectExtraPath = "";
+	std::string mFaceAttributePath = "";
+	bef_ai_face_info mFaceInfo;
+	bef_ai_face_attribute_info mFaceAttributeInfo;
+	bef_ai_hand_info mHandInfo;
+	bef_effect_handle_t m_renderMangerHandle = 0;
+	bef_effect_handle_t m_handDetectHandle = 0;
+	bef_effect_handle_t m_faceDetectHandle = 0;
+	bef_effect_handle_t m_faceAttributesHandle = 0;
+	std::vector<ByteDanceBundle> bundles;
+	std::map<int, double> mBeautyOptions;
+	std::unique_ptr<int> items;
 #ifndef _WIN32
-    CGLContextObj _glContext;
+	CGLContextObj _glContext;
 #endif
-    VideoPluginFrame* cacheYuvVideoFramePtr;
-    VideoPluginFrame* cacheRGBAVideoFramePtr;
+	VideoPluginFrame* cacheYuvVideoFramePtr;
+	VideoPluginFrame* cacheRGBAVideoFramePtr;
 };
 
 #define READ_DOUBLE_VALUE_PARAM(d, name, newvalue) \
