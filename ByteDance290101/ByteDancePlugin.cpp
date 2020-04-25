@@ -801,13 +801,13 @@ const char* ByteDancePlugin::getParameter(const char* key)
 			std::string last_str = mLicenseDirPath.substr(mLicenseDirPath.size() - 1);
 
 
-#if defined(_WIN32)
-			sep = "\\";
-			lic_file_name = "license.bag";
-#else
-			sep = "/";
-			lic_file_name = "license.licbag";
-#endif
+            #if defined(_WIN32)
+                sep = "\\";
+                lic_file_name = "license.bag";
+            #else
+                sep = "/";
+                lic_file_name = "license.licbag";
+            #endif
 
 			// 传入的路径不存在路径划分字符
 			lic_file_path += mLicenseDirPath;
