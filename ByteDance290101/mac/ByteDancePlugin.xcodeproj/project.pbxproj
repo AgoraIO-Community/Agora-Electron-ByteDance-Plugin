@@ -355,16 +355,13 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = (
-					"/Users/stitch/Documents/work-branch/Agora-Electron-Bytedance-Plugin-klzz/ByteDance290101/mac/bytedance/byted_effect_mac_headers",
-					/usr/local/opt/openssl/include,
-				);
+				HEADER_SEARCH_PATHS = "";
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
-				SYSTEM_HEADER_SEARCH_PATHS = /usr/local/openssl/include;
+				SYSTEM_HEADER_SEARCH_PATHS = "${SRCROOT}/openssl";
 			};
 			name = Debug;
 		};
@@ -413,15 +410,12 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = (
-					"/Users/stitch/Documents/work-branch/Agora-Electron-Bytedance-Plugin-klzz/ByteDance290101/mac/bytedance/byted_effect_mac_headers",
-					/usr/local/opt/openssl/include,
-				);
+				HEADER_SEARCH_PATHS = "";
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
-				SYSTEM_HEADER_SEARCH_PATHS = /usr/local/openssl/include;
+				SYSTEM_HEADER_SEARCH_PATHS = "${SRCROOT}/openssl";
 			};
 			name = Release;
 		};
