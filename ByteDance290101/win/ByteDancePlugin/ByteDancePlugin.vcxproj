@@ -89,7 +89,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;FACEUNITYPLUGIN_EXPORTS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)\openssl\include;$(SolutionDir)\bytedance\glew\include\GL;$(SolutionDir)..\;$(SolutionDir)..\common;$(SolutionDir)\bytedance\effect\inc;$(SolutionDir)\base64</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\openssl\include;$(SolutionDir)\bytedance\glew\include\GL;$(SolutionDir)..\;$(SolutionDir)..\common;$(SolutionDir)\bytedance\effect\inc</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
