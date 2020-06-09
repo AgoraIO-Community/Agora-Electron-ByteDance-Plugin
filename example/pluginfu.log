@@ -1,0 +1,8 @@
+
+
+
+
+
+File verbosity level: 9
+date       time         ( uptime  ) [ thread name/id ]                   file:line     v| 
+2020-06-08 21:02:23.385 (   0.000s) [CrRendererMain  ]             loguru.cpp:770   INFO| Logging to 'pluginfu.log', mode: 'a', verbosity: 9
