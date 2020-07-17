@@ -1,8 +1,7 @@
 #pragma once
 #include <stdint.h>
-#include <string>
 #if defined(_WIN32)
-#define EXPORTS  __declspec(dllexport)
+#define EXPORTS __declspec(dllexport)
 #else
 #define EXPORTS
 #endif
@@ -42,10 +41,10 @@ struct VideoPluginFrame {
     void* yBuffer;  //Y data buffer
     void* uBuffer;  //U data buffer
     void* vBuffer;  //V data buffer
+    void* buffer;
     int rotation; // rotation of this frame (0, 90, 180, 270)
     int64_t renderTimeMs;
     int avsync_type;
-    void* buffer;
   };
 class IAVFramePluginCallback {
 public:
@@ -68,5 +67,7 @@ public:
     virtual const char* getParameter(const char* key) = 0;
     virtual int release() = 0;
 };
+
+typedef IAVFramePlugin* (*createAgoraAVFramePlugin)();
 
 extern "C" EXPORTS IAVFramePlugin* createAVFramePlugin();
