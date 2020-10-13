@@ -129,7 +129,7 @@ bool ByteDancePlugin::initOpenGL()
 	CGLContextObj cglContext1 = NULL;
 	CGLChoosePixelFormat(attrib, &pixelFormat, &numPixelFormats);
 	CGLError err = CGLCreateContext(pixelFormat, NULL, &cglContext1);
-	CGLSetCurrentContext(cglContext1);
+	err = CGLSetCurrentContext(cglContext1);
     
     GLint sync = 1;
     CGLSetParameter(cglContext1, kCGLCPSwapInterval, &sync);
@@ -319,6 +319,11 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             }
             mNamaInited = true;
         }
+
+#ifndef _WIN32
+        CGLError err = CGLSetCurrentContext(_glContext);
+        CGLLockContext(_glContext);
+#endif
         
         if (mNamaInited && mAIEffectEnabled && !mAIEffectLoaded) {
             ret = bef_effect_ai_create(&m_renderMangerHandle);
@@ -332,6 +337,9 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             ret = bef_effect_ai_init(m_renderMangerHandle, 0, 0, mStickerPath.c_str(), "");
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: init effect handle failed !");
             mAIEffectLoaded = true;
+            
+            bef_effect_ai_composer_set_mode(m_renderMangerHandle, 1, 0);
+            bef_effect_ai_set_effect(m_renderMangerHandle, mComposerPath.c_str());
         }
         
         if(mNamaInited && mAIEffectNeedUpdate) {
@@ -347,6 +355,19 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             
             mAIEffectNeedUpdate = false;
         }
+        
+        if(mNamaInited && mNeedUpdateFilter) {
+            ret = bef_effect_ai_set_color_filter_v2(m_renderMangerHandle, mFilterPath.c_str());
+            bef_effect_ai_set_intensity(m_renderMangerHandle, BEF_INTENSITY_TYPE_GLOBAL_FILTER_V2, 1);
+            CHECK_BEF_AI_RET_SUCCESS(ret, "ByteDancePlugin::onPluginCaptureVideoFrame:: set filter failed !");
+            mNeedUpdateFilter = false;
+        }
+        
+//        if(mNamaInited && mNeedUpdateSticker) {
+//            ret = bef_effect_ai_set_effect(m_renderMangerHandle, mStickerPath.c_str());
+//            CHECK_BEF_AI_RET_SUCCESS(ret, "ByteDancePlugin::onPluginCaptureVideoFrame:: set sticker failed !");
+//            mNeedUpdateSticker = false;
+//        }
         
 //        bef_effect_result_t result = bef_effect_ai_composer_set_nodes(m_renderMangerHandle, (const char **)nodesPath, count);
         
@@ -379,16 +400,16 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             ret = bef_effect_ai_hand_check_license(m_handDetectHandle, mLicensePath.c_str());
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: check_license hand detect failed");
             
-            ret = bef_effect_ai_hand_detect_setmodel(m_handDetectHandle, BEF_HAND_MODEL_DETECT, mHandDetectPath.c_str());
+            ret = bef_effect_ai_hand_detect_setmodel(m_handDetectHandle, BEF_AI_HAND_MODEL_DETECT, mHandDetectPath.c_str());
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: set hand detect model failed !");
             
-            ret = bef_effect_ai_hand_detect_setmodel(m_handDetectHandle, BEF_HAND_MODEL_BOX_REG, mHandBoxPath.c_str());
+            ret = bef_effect_ai_hand_detect_setmodel(m_handDetectHandle, BEF_AI_HAND_MODEL_BOX_REG, mHandBoxPath.c_str());
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: set hand box model failed !");
             
-            ret = bef_effect_ai_hand_detect_setmodel(m_handDetectHandle, BEF_HAND_MODEL_GESTURE_CLS, mHandGesturePath.c_str());
+            ret = bef_effect_ai_hand_detect_setmodel(m_handDetectHandle, BEF_AI_HAND_MODEL_GESTURE_CLS, mHandGesturePath.c_str());
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: set hand gesture model failed !");
             
-            ret = bef_effect_ai_hand_detect_setmodel(m_handDetectHandle, BEF_HAND_MODEL_KEY_POINT, mHandKPPath.c_str());
+            ret = bef_effect_ai_hand_detect_setmodel(m_handDetectHandle, BEF_AI_HAND_MODEL_KEY_POINT, mHandKPPath.c_str());
             CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::initializeHandle:: set hand key points model failed !");
             
             ret = bef_effect_ai_hand_detect_setparam(m_handDetectHandle, BEF_HAND_MAX_HAND_NUM, 1);
@@ -401,9 +422,6 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
         if(mNamaInited) {
             bef_effect_ai_set_width_height(m_renderMangerHandle, videoFrame->width, videoFrame->height);
                     // 4. make it beautiful
-    #ifndef _WIN32
-            CGLLockContext(_glContext);
-    #endif
             checkCreateVideoFrame(videoFrame);
             yuvData(videoFrame, cacheYuvVideoFramePtr);
             uint64_t timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -436,18 +454,34 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
                 } else {
                     bef_ai_hand_info handInfo;
                     ret = bef_effect_ai_hand_detect(m_handDetectHandle, (unsigned char*)cacheRGBAVideoFramePtr->buffer, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, BEF_AI_CLOCKWISE_ROTATE_0,
-                                                       BEF_HAND_MODEL_DETECT | BEF_HAND_MODEL_BOX_REG |
-                                                       BEF_HAND_MODEL_GESTURE_CLS| BEF_HAND_MODEL_KEY_POINT, &handInfo, 0);
+                                                       BEF_AI_HAND_MODEL_DETECT | BEF_AI_HAND_MODEL_BOX_REG |
+                                                       BEF_AI_HAND_MODEL_GESTURE_CLS| BEF_AI_HAND_MODEL_KEY_POINT, &handInfo, 0);
                     mHandInfo = handInfo;
                     CHECK_BEF_AI_RET_SUCCESS(ret, "gesture info collect failed");
                 }
             }
             
             if(mAIEffectEnabled && mAIEffectLoaded) {
+//                GLuint textureId;
+//                glGenTextures(1, &textureId);
+//                glBindTexture(GL_TEXTURE_2D, textureId);
+//                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, videoFrame->yStride, videoFrame->height, 0, GL_BGRA, GL_UNSIGNED_BYTE, (unsigned char*)cacheRGBAVideoFramePtr->buffer);
+//                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+//                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+//                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+//                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+//                glBindTexture(GL_TEXTURE_2D, 0);
+//                GLboolean isTexture = glIsTexture(textureId);
+//                bool bIsTexture = isTexture == GL_TRUE;
+//                LOG_F(INFO, "isTexture: %i", bIsTexture);
+//                ret = bef_effect_ai_algorithm_texture(m_renderMangerHandle, textureId, timestamp);
+//
+//                LOG_F(INFO, "algorithm texture: %i", ret);
                 ret = bef_effect_ai_algorithm_buffer(m_renderMangerHandle, (unsigned char*)cacheRGBAVideoFramePtr->buffer,
                                                BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride,
                                                videoFrame->height, videoFrame->yStride * 4,
                                                timestamp);
+                CHECK_BEF_AI_RET_SUCCESS(ret, "EffectHandle::algorithm:: algorithm image failed !");
                 ret = bef_effect_ai_process_buffer(m_renderMangerHandle, (unsigned char*)cacheRGBAVideoFramePtr->buffer,
                                                 BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride,
                                                 videoFrame->height, videoFrame->yStride * 4,
@@ -550,6 +584,15 @@ int ByteDancePlugin::setParameter(const char *param)
             return -101;
         }
         mStickerPath = std::string(stickerPath.GetString());
+        mNeedUpdateSticker = true;
+    }
+    
+    if(d.HasMember("plugin.bytedance.composerPath")) {
+        Value& path = d["plugin.bytedance.composerPath"];
+        if(!path.IsString()) {
+            return -101;
+        }
+        mComposerPath = std::string(path.GetString());
     }
     
     if(d.HasMember("plugin.bytedance.faceDetectModelPath")) {
@@ -648,16 +691,27 @@ int ByteDancePlugin::setParameter(const char *param)
         mHandDetectPath = std::string(path.GetString());
     }
     
+    if(d.HasMember("plugin.bytedance.filter")) {
+        Value& path = d["plugin.bytedance.filter"];
+        if(!path.IsString()) {
+            return -101;
+        }
+        mFilterPath = std::string(path.GetString());
+        mNeedUpdateFilter = true;
+    }
+    
     if(d.HasMember("plugin.bytedance.ai.composer.nodes")) {
         Value& nodes = d["plugin.bytedance.ai.composer.nodes"];
         if(!nodes.IsArray()) {
             return -101;
         }
         
-        for (int i = 0; i < mAINodeCount; i++) {
-            free(mAINodes[i]);
+        if(mAINodeCount > 0) {
+            for (int i = 0; i < mAINodeCount; i++) {
+                free(mAINodes[i]);
+            }
+            free(mAINodes);
         }
-        free(mAINodes);
         mAINodeIntensities.clear();
         
         mAINodeCount = nodes.Size();
@@ -725,6 +779,23 @@ const char* ByteDancePlugin::getParameter(const char* key)
         writer.EndObject();
         return strBuf.GetString();
     } else if (strncmp(key, "plugin.bytedance.face.info", strlen(key)) == 0) {
+        writer.StartArray();
+        for(int i = 0; i < mFaceInfo.face_count; i++) {
+            bef_ai_face_106 face = mFaceInfo.base_infos[i];
+            writer.StartObject();
+            writer.Key("pitch");
+            writer.Int(face.pitch);
+            
+            writer.Key("yaw");
+            writer.Int(face.yaw);
+            
+            writer.Key("roll");
+            writer.Int(face.roll);
+            writer.EndObject();
+        }
+        
+        writer.EndArray();
+        return strBuf.GetString();
     } else if(strncmp(key, "plugin.bytedance.face.attribute", strlen(key)) == 0) {
         writer.StartObject();
         writer.Key("age");

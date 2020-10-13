@@ -109,6 +109,8 @@ protected:
     bool mFaceAttributeEnabled = false;
     bool mHandDetectLoaded = false;
     bool mHandDetectEnabled = false;
+    bool mNeedUpdateFilter = false;
+    bool mNeedUpdateSticker = false;
     char** mAINodes;
     SizeType mAINodeCount = 0;
     std::vector<float> mAINodeIntensities;
@@ -125,6 +127,8 @@ protected:
     std::string mFaceDetectPath = "";
     std::string mFaceDetectExtraPath = "";
     std::string mFaceAttributePath = "";
+    std::string mFilterPath = "";
+    std::string mComposerPath = "";
     bef_ai_face_info mFaceInfo;
     bef_ai_face_attribute_info mFaceAttributeInfo;
     bef_ai_hand_info mHandInfo;
