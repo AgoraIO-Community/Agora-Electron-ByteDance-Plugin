@@ -438,7 +438,7 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
                     CHECK_BEF_AI_RET_SUCCESS(ret, "face info detect failed");
                     if(faceInfo.face_count != 0) {
                         unsigned long long attriConfig = BEF_FACE_ATTRIBUTE_AGE | BEF_FACE_ATTRIBUTE_HAPPINESS                                |BEF_FACE_ATTRIBUTE_EXPRESSION|BEF_FACE_ATTRIBUTE_GENDER
-                        |BEF_FACE_ATTRIBUTE_RACIAL|BEF_FACE_ATTRIBUTE_ATTRACTIVE;
+                        |BEF_FACE_ATTRIBUTE_RACIAL|BEF_FACE_ATTRIBUTE_ATTRACTIVE | BEF_FACE_ATTRIBUTE_CONFUSE;
                         bef_ai_face_attribute_info attrInfo;
                         memset(&attrInfo, 0, sizeof(bef_ai_face_attribute_info));
                         ret = bef_effect_ai_face_attribute_detect(m_faceAttributesHandle, (unsigned char*)cacheRGBAVideoFramePtr->buffer, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, faceInfo.base_infos, attriConfig, &attrInfo);
@@ -815,6 +815,8 @@ const char* ByteDancePlugin::getParameter(const char* key)
             
         writer.Key("racial_type");
         writer.Double(mFaceAttributeInfo.racial_type);
+        writer.Key("confused_prob");
+        writer.Double(mFaceAttributeInfo.confused_prob);
             
         writer.EndObject();
         return strBuf.GetString();
