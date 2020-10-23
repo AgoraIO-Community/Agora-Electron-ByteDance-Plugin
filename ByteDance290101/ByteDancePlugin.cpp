@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include "bef_effect_ai_yuv_process.h"
+#include "bef_effect_ai_portrait_matting.h"
 #include <chrono>
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
@@ -25,6 +26,11 @@
 
 static bool mNamaInited = false;
 using namespace std::chrono;
+static float CUBE[] = {-1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f,};
+static float TEXTURE_FLIPPED[] = {0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,};
+static float TEXTURE_RORATION_0[] = {0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,};
+
+
 
 #if defined(_WIN32)
 PIXELFORMATDESCRIPTOR pfd = {
@@ -363,11 +369,13 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             mNeedUpdateFilter = false;
         }
         
-//        if(mNamaInited && mNeedUpdateSticker) {
-//            ret = bef_effect_ai_set_effect(m_renderMangerHandle, mStickerPath.c_str());
-//            CHECK_BEF_AI_RET_SUCCESS(ret, "ByteDancePlugin::onPluginCaptureVideoFrame:: set sticker failed !");
-//            mNeedUpdateSticker = false;
-//        }
+        if(mNamaInited && mNeedUpdateSticker) {
+            ret = bef_effect_ai_set_effect(m_renderMangerHandle, mFaceStickerItemPath.c_str());
+            CHECK_BEF_AI_RET_SUCCESS(ret, "apply face sticker failed");
+            ret = bef_effect_ai_set_effect(m_renderMangerHandle, mPortraitModelPath.c_str());
+            CHECK_BEF_AI_RET_SUCCESS(ret, "apply face portrait sticker");
+            mNeedUpdateSticker = false;
+        }
         
 //        bef_effect_result_t result = bef_effect_ai_composer_set_nodes(m_renderMangerHandle, (const char **)nodesPath, count);
         
@@ -462,21 +470,8 @@ bool ByteDancePlugin::onPluginCaptureVideoFrame(VideoPluginFrame *videoFrame)
             }
             
             if(mAIEffectEnabled && mAIEffectLoaded) {
-//                GLuint textureId;
-//                glGenTextures(1, &textureId);
-//                glBindTexture(GL_TEXTURE_2D, textureId);
-//                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, videoFrame->yStride, videoFrame->height, 0, GL_BGRA, GL_UNSIGNED_BYTE, (unsigned char*)cacheRGBAVideoFramePtr->buffer);
-//                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-//                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-//                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-//                glBindTexture(GL_TEXTURE_2D, 0);
-//                GLboolean isTexture = glIsTexture(textureId);
-//                bool bIsTexture = isTexture == GL_TRUE;
-//                LOG_F(INFO, "isTexture: %i", bIsTexture);
-//                ret = bef_effect_ai_algorithm_texture(m_renderMangerHandle, textureId, timestamp);
-//
-//                LOG_F(INFO, "algorithm texture: %i", ret);
+//                bef_ai_matting_ret mattingRet;
+//                ret = bef_effect_ai_portrait_matting_do_detect(portraitDetectHandle, (unsigned char*)cacheRGBAVideoFramePtr->buffer, BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride, videoFrame->height, videoFrame->yStride * 4, BEF_AI_CLOCKWISE_ROTATE_0, false, &mattingRet);
                 ret = bef_effect_ai_algorithm_buffer(m_renderMangerHandle, (unsigned char*)cacheRGBAVideoFramePtr->buffer,
                                                BEF_AI_PIX_FMT_RGBA8888, videoFrame->yStride,
                                                videoFrame->height, videoFrame->yStride * 4,
@@ -584,7 +579,6 @@ int ByteDancePlugin::setParameter(const char *param)
             return -101;
         }
         mStickerPath = std::string(stickerPath.GetString());
-        mNeedUpdateSticker = true;
     }
     
     if(d.HasMember("plugin.bytedance.composerPath")) {
@@ -601,6 +595,14 @@ int ByteDancePlugin::setParameter(const char *param)
             return -101;
         }
         mFaceDetectPath = std::string(faceDetectModelPath.GetString());
+    }
+    
+    if(d.HasMember("plugin.bytedance.portraitMattingPath")) {
+        Value& path = d["plugin.bytedance.portraitMattingPath"];
+        if(!path.IsString()) {
+            return -101;
+        }
+        mPortraitMattingModelPath = std::string(path.GetString());
     }
     
     if(d.HasMember("plugin.bytedance.faceDetectExtraModelPath")) {
@@ -683,6 +685,15 @@ int ByteDancePlugin::setParameter(const char *param)
         mAIEffectEnabled = enabled.GetBool();
     }
     
+    if (d.HasMember("plugin.bytedance.portrait.model.path")) {
+        Value& path = d["plugin.bytedance.portrait.model.path"];
+        if (!path.IsString()) {
+            return -101;
+        }
+        mPortraitModelPath = std::string(path.GetString());
+        mNeedUpdateSticker = true;
+    }
+    
     if(d.HasMember("plugin.bytedance.handDetectModelPath")) {
         Value& path = d["plugin.bytedance.handDetectModelPath"];
         if(!path.IsString()) {
@@ -698,6 +709,15 @@ int ByteDancePlugin::setParameter(const char *param)
         }
         mFilterPath = std::string(path.GetString());
         mNeedUpdateFilter = true;
+    }
+    
+    if (d.HasMember("plugin.bytedance.faceStickerItemResourcePath")) {
+        Value& path = d["plugin.bytedance.faceStickerItemResourcePath"];
+        if (!path.IsString()) {
+            return -101;
+        }
+        mFaceStickerItemPath = std::string(path.GetString());
+        mNeedUpdateSticker = true;
     }
     
     if(d.HasMember("plugin.bytedance.ai.composer.nodes")) {
@@ -791,6 +811,16 @@ const char* ByteDancePlugin::getParameter(const char* key)
             
             writer.Key("roll");
             writer.Int(face.roll);
+            
+            writer.Key("top");
+            writer.Int(face.rect.top);
+            writer.Key("left");
+            writer.Int(face.rect.left);
+            writer.Key("bottom");
+            writer.Int(face.rect.bottom);
+            writer.Key("right");
+            writer.Int(face.rect.right);
+            
             writer.EndObject();
         }
         
@@ -815,6 +845,7 @@ const char* ByteDancePlugin::getParameter(const char* key)
             
         writer.Key("racial_type");
         writer.Double(mFaceAttributeInfo.racial_type);
+        
         writer.Key("confused_prob");
         writer.Double(mFaceAttributeInfo.confused_prob);
             
@@ -845,6 +876,101 @@ int ByteDancePlugin::release()
     folderPath = "";
     delete this;
     return 0;
+}
+
+void ByteDancePlugin::drawPortraitMask(unsigned char* mask, int viewWidth, int viewHeight, int* size)
+{
+    glViewport(0, 0, viewWidth, viewHeight);
+    glUseProgram(_maskPortraitProgram);
+    glVertexAttribPointer(_maskPortraitPosition, 2, GL_FLOAT, false, 0, CUBE);
+    glEnableVertexAttribArray(_maskPortraitPosition);
+    glVertexAttribPointer(_maskPortraitCoordinatLocation, 2, GL_FLOAT, false, 0, TEXTURE_FLIPPED);
+    glEnableVertexAttribArray(_maskPortraitCoordinatLocation);
+    
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    if (_cachedTexture == -1){
+        glGenTextures(1, &_cachedTexture);
+        glBindTexture(GL_TEXTURE_2D, _cachedTexture);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, size[0], size[1], 0, GL_ALPHA, GL_UNSIGNED_BYTE, mask);
+    }else{
+        glBindTexture(GL_TEXTURE_2D, _cachedTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, size[0], size[1], 0, GL_ALPHA, GL_UNSIGNED_BYTE, mask);
+    }
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _cachedTexture);
+    glUniform1i(_maskPortraitInputMaskTexture, 0);
+    
+    glUniform4f(_maskPortraitColor, BE_COLOR_RED.red, BE_COLOR_RED.green, BE_COLOR_RED.blue, BE_COLOR_RED.alpha);
+//        [self checkGLError];
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+//        [self checkGLError];
+    glDisable(GL_BLEND);
+    
+    glDisableVertexAttribArray(_maskPortraitCoordinatLocation);
+    glDisableVertexAttribArray(_maskPortraitPosition);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0);
+}
+
+int ByteDancePlugin::compileShader(const char *shaderString, GLenum shaderType)
+{
+    GLuint shaderHandle = glCreateShader(shaderType);
+    
+    int shaderStringLength = (int)strlen(shaderString);
+    glShaderSource(shaderHandle, 1, &shaderString, &shaderStringLength);
+    glCompileShader(shaderHandle);
+    GLint success;
+    glGetShaderiv(shaderHandle, GL_COMPILE_STATUS, &success);
+    
+    
+    if (success == GL_FALSE){
+        char b[2049];
+        GLsizei infoSize = 0;
+        glGetShaderInfoLog(shaderHandle, 2048, &infoSize, b);
+        b[infoSize] = '\0';
+        
+//        NSLog(@"BErenderHelper compiler shader error: \n %s \n %s", shaderStringUTF8, b);
+        return 0;
+    }
+    return shaderHandle;
+}
+
+void ByteDancePlugin::loadTextureShader()
+{
+    GLuint vertexShader = compileShader(MASK_VERTEX.c_str(), GL_VERTEX_SHADER);
+    GLuint fragmentShader = compileShader(MASK_PORTRAIT_FRAGMENT.c_str(), GL_FRAGMENT_SHADER);
+    
+    _maskPortraitProgram = glCreateProgram();
+    glAttachShader(_maskPortraitProgram, vertexShader);
+    glAttachShader(_maskPortraitProgram, fragmentShader);
+    glLinkProgram(_maskPortraitProgram);
+    
+    GLint linkSuccess;
+    glGetProgramiv(_maskPortraitProgram, GL_LINK_STATUS, &linkSuccess);
+    if (linkSuccess == GL_FALSE){
+//        NSLog(@"BERenderHelper link shader error");
+    }
+    
+    glUseProgram(_maskPortraitProgram);
+    _maskPortraitPosition = glGetAttribLocation(_maskPortraitProgram, "position");
+    _maskPortraitCoordinatLocation = glGetAttribLocation(_maskPortraitProgram, "inputTextureCoordinate");
+    
+    _maskPortraitInputMaskTexture = glGetUniformLocation(_maskPortraitProgram, "inputMaskTexture");
+    _maskPortraitColor = glGetUniformLocation(_maskPortraitProgram, "maskColor");
+    
+    if (vertexShader)
+        glDeleteShader(vertexShader);
+    
+    if (fragmentShader)
+        glDeleteShader(fragmentShader);
 }
 
 IAVFramePlugin* createAVFramePlugin()

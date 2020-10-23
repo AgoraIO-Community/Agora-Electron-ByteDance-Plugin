@@ -42,6 +42,17 @@
 #include <unistd.h>
 #endif // WIN32
 
+typedef struct be_rgba_color {
+    float red;
+    float green;
+    float blue;
+    float alpha;
+}be_rgba_color;
+
+static std::string MASK_VERTEX = "#attribute vec4 position;attribute vec2 inputTextureCoordinate;varying vec2 textureCoordinate;void main(){textureCoordinate = 1.0 - vec2(inputTextureCoordinate.x, inputTextureCoordinate.y);gl_Position = position;}";
+
+static std::string MASK_PORTRAIT_FRAGMENT = "#varying  vec2 textureCoordinate;uniform sampler2D inputMaskTexture;uniform vec4 maskColor;void main(){float maska = texture2D(inputMaskTexture, textureCoordinate).a;gl_FragColor = vec4(maskColor.rgb, 1.0-maska);}";
+static be_rgba_color const BE_COLOR_RED = {1.0, 0.0, 0.0, 1.0};
 using namespace rapidjson;
 
 enum ByteDancePluginStatus
@@ -92,6 +103,9 @@ protected:
     void initCacheVideoFrame(VideoPluginFrame* dstVideoFrame, VideoPluginFrame* srcVideoFrame, VIDEO_FRAME_TYPE type);
     void memsetCacheBuffer(VideoPluginFrame* videoFrame);
     void releaseCacheBuffer(VideoPluginFrame* videoFrame);
+    void loadTextureShader();
+    void drawPortraitMask(unsigned char* mask, int viewWidth, int viewHeight, int* maskSize);
+    int compileShader(const char* shaderString, GLenum shaderType);
     std::string folderPath;
     rapidjson::StringBuffer strBuf;
     bool switching = false;
@@ -114,6 +128,13 @@ protected:
     bool mNeedUpdateFilter = false;
     bool mNeedUpdateSticker = false;
     char** mAINodes;
+    GLuint _maskPortraitProgram;
+    GLint _maskPortraitPosition;
+    GLint _maskPortraitCoordinatLocation;
+    GLint _maskPortraitInputMaskTexture;
+    GLint _maskPortraitColor;
+    
+    GLuint _cachedTexture = -1;
     SizeType mAINodeCount = 0;
     std::vector<float> mAINodeIntensities;
     std::vector<std::string> mAINodeKeys;
@@ -131,6 +152,9 @@ protected:
     std::string mFaceAttributePath = "";
     std::string mFilterPath = "";
     std::string mComposerPath = "";
+    std::string mFaceStickerItemPath = "";
+    std::string mPortraitModelPath = "";
+    std::string mPortraitMattingModelPath = "";
     bef_ai_face_info mFaceInfo;
     bef_ai_face_attribute_info mFaceAttributeInfo;
     bef_ai_hand_info mHandInfo;
